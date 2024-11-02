@@ -1,0 +1,17 @@
+{
+  "name": "chat_seguro",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "app": "node --watch server/src/server.js"
+  },
+  "keywords": [],
+  "author": "Felipe Peres de Almeida, Vitor, Adriano",
+  "license": "ISC",
+  "description": "Secure chat application developed for information security class, by the end of the class it should cover all pillars of infosec.",
+  "dependencies": {
+    "express": "^4.21.1",
+    "socket.io": "^4.8.1"
+  }
+}

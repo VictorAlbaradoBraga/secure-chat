@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Secure Chat</title>
+</head>
+<body>
+	<div class="chat">
+		<div class="messages" id="messages"></div>	
+		<input type="text" id="textbox" placeholder="type something"/>
+		<button id="sendMessage" onclick="sendMessage()">Send Message</button>
+	</div>
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/scripts/app.js"></script>
+</body>
+</html>
