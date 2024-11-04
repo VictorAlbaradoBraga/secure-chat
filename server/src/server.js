@@ -29,7 +29,6 @@ app.get("/", (req, res) =>
 // there will be two name spaces, one for users and one for groups. This will help separate group and user-to-user logic
 
 // current implementation: 
-//   *every user can see eachother, to talk to a user you must send its socketID in the message payload
 //   *there is no message encryption and no persistence
 
 
