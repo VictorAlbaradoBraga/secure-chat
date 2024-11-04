@@ -17,23 +17,41 @@ const staticFilesRoot = path.join(rootDir, "client/src");
 // virtual path to server static files for the client
 app.use("/scripts", express.static(path.join(staticFilesRoot, "scripts/")));
 app.use("/pages", express.static(path.join(staticFilesRoot, "pages/")));
+app.use("/styles", express.static(path.join(staticFilesRoot, "styles/")));
 
 app.get("/", (req, res) =>
 	{
 		res.sendFile(path.join(staticFilesRoot, "pages/home.html"));
 	});
 
-io.on("connection", (socket)=>
+// when a new user is created it is assigned a room that has it's unique ID(To Be Implemented)
+// to send a message to a different user that message payload must contain {userId, msg}
+// there will be two name spaces, one for users and one for groups. This will help separate group and user-to-user logic
+
+// current implementation: 
+//   *every user can see eachother, to talk to a user you must send its socketID in the message payload
+//   *there is no message encryption and no persistence
+
+
+// defines namespaces to pipe data through different channels for users and groups;
+const ioUser = io.of("/users");
+const ioGroup = io.of("/groups");
+
+ioUser.on("connection", (socket)=>
 	{
-		console.log(`${socket.id} connected`);
 
-		socket.on("message", (msg)=>
+		// TODO(Felipe): replace socketId with userId later on.
+		socket.join(socket.id);
+		// informs other sockets a new user has connected and that they can talk to him.
+		socket.broadcast.emit("user connnected", {"id": socket.id});
+		socket.on("user connected", (data)=> socket.broadcast.emit("user connnected", {"id": socket.id}))
+		// watches on for send messages, and redirects it to the correct room.
+		socket.on("send message", (data)=>
 			{
-				console.log(`Received message: ${msg}`);
-				socket.broadcast.emit("message", msg);
-			})
+				ioUser.to(data.id).emit("receive message", {id: data.id, msg: data.msg});
+			});
 
-		socket.on("disconnect", ()=>console.log("user disconnected"));
+		socket.on("disconnect", ()=>{});
 	});
 
 server.listen(port, host, ()=>{console.log(`shits is running ${host}:${port}`)});
