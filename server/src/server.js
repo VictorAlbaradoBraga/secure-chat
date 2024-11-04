@@ -29,7 +29,9 @@ app.get("/", (req, res) =>
 // there will be two name spaces, one for users and one for groups. This will help separate group and user-to-user logic
 
 // current implementation: 
-//   *there is no message encryption and no persistence
+//   *there is no unique userId
+//   *there is only session data persistence
+//   *there is no message encryption
 
 
 // defines namespaces to pipe data through different channels for users and groups;
@@ -47,10 +49,13 @@ ioUser.on("connection", (socket)=>
 		// watches on for send messages, and redirects it to the correct room.
 		socket.on("send message", (data)=>
 			{
-				ioUser.to(data.id).emit("receive message", {id: data.id, msg: data.msg});
+				ioUser.to(data.id).emit("receive message", {id: socket.id, msg: data.msg});
 			});
 
-		socket.on("disconnect", ()=>{});
+		socket.on("disconnect", (reason)=>
+			{
+				ioUser.emit("user disconnected", {"id": socket.id});
+			});
 	});
 
 server.listen(port, host, ()=>{console.log(`shits is running ${host}:${port}`)});

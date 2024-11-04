@@ -1,25 +1,31 @@
+/* Universal box-sizing to include padding and border in width/height calculations */
+* {
+    box-sizing: border-box;
+}
+
 /* Container holding the user list and chat box */
 .chat-container {
     display: flex;
-    height: 100vh;
+    height: 100vh; /* Full viewport height */
 }
 
 /* User list styling */
 .users {
-    width: 250px;
+    width: 300px; /* Increased width by 20% */
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 20px;
+    padding: 10px; /* Padding inside the user list */
     background-color: #f5f5f5;
     border-right: 1px solid #ddd;
-    overflow-y: auto;
+    max-height: 100vh; /* Prevents pushing down the page */
+    overflow-y: auto; /* Allows scrolling within the user list */
 }
 
 /* Individual user link styling */
 .users .user-link {
     display: block;
-    padding: 15px;
+    padding: 10px; /* Padding for user links */
     text-decoration: none;
     background-color: #ffffff;
     border: 1px solid #ddd;
@@ -34,12 +40,23 @@
     transform: translateY(-2px);
 }
 
+/* Style for the session ID */
+.users .user {
+    padding: 10px; /* Padding for session ID */
+    background-color: #e6f7ff; /* Light background color */
+    border-radius: 6px;
+    color: #333; /* Dark text color */
+    margin-bottom: 10px; /* Space between session ID and user links */
+    text-align: center; /* Center text */
+    font-weight: bold; /* Make it stand out */
+}
+
 /* Chat box styling */
 .chat-box {
-    flex: 1;
+    flex: 1; /* Takes up the remaining space */
     padding: 20px;
     background-color: #ffffff;
-    overflow-y: auto;
+    overflow-y: auto; /* Allows scrolling for chat messages */
     display: flex;
     flex-direction: column;
 }
