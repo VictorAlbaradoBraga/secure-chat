@@ -1,7 +1,8 @@
 const {createServer} = require("node:http");
 const express = require("express");
-const path = require("path");
+const path = require("node:path");
 const {Server} = require("socket.io");
+const {randomUUID} = require("node:crypto")
 
 const port = 6969;
 const host = "127.0.0.1";
@@ -21,8 +22,18 @@ app.use("/styles", express.static(path.join(staticFilesRoot, "styles/")));
 
 app.get("/", (req, res) =>
 	{
-		res.sendFile(path.join(staticFilesRoot, "pages/home.html"));
+		res.redirect("/welcome");
 	});
+
+app.get("/welcome", (req, res)=>
+	{
+		res.sendFile(path.join(staticFilesRoot, "pages/welcome.html"));
+	})
+
+app.get("/home", (req, res)=>
+	{
+		res.sendFile(path.join(staticFilesRoot, "pages/home.html"));
+	})
 
 // when a new user is created it is assigned a room that has it's unique ID(To Be Implemented)
 // to send a message to a different user that message payload must contain {userId, msg}
@@ -49,7 +60,7 @@ ioGroup.on("connection", (socket)=>
 	{
 		socket.on("create group", (data)=>
 			{
-				const groupId = "generate group id lol";
+				const groupId = randomUUID();
 				const group = {"group_id": groupId, "group_name": data.groupName, "admin": socket.id, "members": [socket.id]};
 				groups.push(group);
 				socket.join(group.group_id);
@@ -70,20 +81,22 @@ ioGroup.on("connection", (socket)=>
 // user to user communication channel
 ioUser.on("connection", (socket)=>
 	{
-		users.push({"user_name": socket.user_name, "id": socket.id, "groups": []});
+		//users.push({"user_name": socket.user_name, "id": socket.id, "groups": []});
 		// TODO(Felipe): replace socketId with userId later on.
+		
 		socket.join(socket.id);
 		// informs other sockets a new user has connected and that they can talk to him.
-		socket.broadcast.emit("user connnected", {"id": socket.id});
+		socket.broadcast.emit("user connnected", {"id": socket.id, "user_name": socket.handshake.auth.user_name});
 		// rebroadcast to the new users the ids of the already connected ones
 		socket.on("user connected", (data)=> 
 			{
-				socket.broadcast.emit("user connnected", {"id": socket.id})
+				console.log(data.user_name);
+				socket.broadcast.emit("user connnected", {"id": socket.id, "user_name": data.user_name})
 			});
 		// watches on for send messages, and redirects it to the correct room.
 		socket.on("send message", (data)=>
 			{
-				socket.to(data.id).emit("receive message", {"id": socket.id, "msg": data.msg});
+				socket.to(data.id).emit("receive message", {"id": socket.id, "sender": data.sender, "msg": data.msg});
 			});
 		// invitation event to signal to other user if they wish to join a group chat
 		socket.on("invite user", (data)=>

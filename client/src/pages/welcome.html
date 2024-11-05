@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Welcome</title>
+    <script src="/scripts/welcome.js"></script>
+    <style type="text/css">
+        .view
+        {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 75vh;
+        }
+
+        .welcome
+        {
+            display: block;
+            background: #f5f5f5;
+            font-family: "arial";
+            border-radius: 10%;
+            padding: 20px;
+        }
+
+        .welcome h1
+        {
+            text-align: center;
+        }
+
+        form
+        {
+            line-height: 1.5;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="view">
+        <div class="welcome">
+            <h1 >Welcome!</h1>
+            <div>
+                <form action="/home" method="get">
+                    <label for="user-name" name="l-user-name">user name:</label><br>
+                    <input type="text" id="user-name" name="user-name"><br>
+                    <button onclick="login()">login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

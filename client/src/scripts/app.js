@@ -1,22 +1,26 @@
-const manager = new Manager("localhost:6969", {"user_name": sessionStorage.getItem("user_name")});
-const users = document.getElementById("users");
-const usersArr = []
+let me = {"id": null, "user_name": sessionStorage.getItem("user-name")};
 let friendId = null;
+
+const socket = io("/users", {"auth": {"user_name": me.user_name}});
+const usersDiv = document.getElementById("users");
+const usersArr = [];
 const messagesDiv = document.getElementById("messages");
 
 socket.on("connect", ()=>
 {
-  document.getElementById("user").textContent = `Session Id: ${socket.id}`; 
+  me.id = socket.id
+  document.getElementById("user").textContent = `user name: ${me.user_name}`; 
 })
 
 socket.on("user connnected", (data)=>
 {
-  const user = usersArr.find((userId) => userId === data.id);
-  if(!user)
+  const userFound = usersArr.find((user) => user.id === data.id);
+  if(!userFound)
   {
-    addUser(data.id);
-    usersArr.push(data.id);
-    socket.emit("user connected", {"id": socket.id});
+    const newUser = {"id": data.id, "user_name": data.user_name};
+    addUser(newUser);
+    usersArr.push(newUser);
+    socket.emit("user connected", {"id": me.id, "user_name": me.user_name});
   }
 });
 
@@ -29,16 +33,15 @@ socket.on("user disconnected", (data)=>
 
 socket.on("receive message", (data) => 
 {
-  storeMsg(data.id, data.id, data.msg)
-  if(friendId === data.id) displayMessage(data.id, data.msg)
+  storeMsg(data.id, data.sender, data.msg)
+  if(friendId === data.id) displayMessage(data.sender, data.msg)
 });
 
-function displayMessage(id, msg)
+function displayMessage(sender, msg)
 {
-  let sender = id;
   const messageDiv = document.createElement("div");
   messageDiv.setAttribute("id", "message");
-  if(sender === socket.id) sender = "you";
+  if(sender === me.id) sender = "you";
   messageDiv.textContent = `${msg} - sender: ${sender}`;
   messagesDiv.appendChild(messageDiv);
 }
@@ -49,9 +52,9 @@ function sendMessage()
   {
       textbox = document.getElementById("textbox");
       message = textbox.value;
-      storeMsg(friendId, socket.id, message)
-      displayMessage(socket.id, message);
-      socket.emit("send message", {"id": friendId, "msg": message});
+      storeMsg(friendId, me.id, message)
+      displayMessage(me.id, message);
+      socket.emit("send message", {"id": friendId, "sender": me.user_name, "msg": message});
       textbox.value = '';
   }
 }
@@ -62,16 +65,16 @@ function clearMessages()
   messages.forEach(msg => msg.remove());
 }
 
-function addUser(id)
+function addUser(user)
 {
-  const user = document.createElement("a");
-  user.setAttribute("href", "#");
-  user.setAttribute("id", id);
-  user.setAttribute("class", "user-link")
-  user.setAttribute("data-user", id);
-  user.setAttribute("onclick", `selectUser(this)`);
-  user.textContent = `${id}`;
-  users.appendChild(user);
+  const userElement = document.createElement("a");
+  userElement.setAttribute("href", "#");
+  userElement.setAttribute("id", user.id);
+  userElement.setAttribute("class", "user-link")
+  userElement.setAttribute("data-user", user.id);
+  userElement.setAttribute("onclick", `selectUser(this)`);
+  userElement.textContent = `${user.user_name}`;
+  usersDiv.appendChild(userElement);
 }
 
 function removeUser(id)
