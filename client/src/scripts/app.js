@@ -1,4 +1,4 @@
-const socket = io("/users");
+const manager = new Manager("localhost:6969", {"user_name": sessionStorage.getItem("user_name")});
 const users = document.getElementById("users");
 const usersArr = []
 let friendId = null;
@@ -80,7 +80,7 @@ function removeUser(id)
   user.remove();
 }
 
-//TODO(Felipe): this is saving messages in sessionStorage, change it to localStorage later
+//TODO(Felipe): this is saving messages in sessionStorage, change it to localStorage later or sql server
 function storeMsg(id, sender, msg)
 {
   console.log(`id:${id}\nsender:${sender}\nmsg:${msg}`);

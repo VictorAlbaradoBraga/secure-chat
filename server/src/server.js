@@ -38,22 +38,62 @@ app.get("/", (req, res) =>
 const ioUser = io.of("/users");
 const ioGroup = io.of("/groups");
 
+// array of connected users and array of groups:
+//   *users = [{"user_name": "user name", "id": <user id>, "groups": [<group ids>]}]
+//   *groups = [{"group_id": <group id>, "group_name": "group name", "admin": <user id>, "members": [<user id>]}]
+const users = [];
+const groups = [];
+
+// group to users/members communcation channel
+ioGroup.on("connection", (socket)=>
+	{
+		socket.on("create group", (data)=>
+			{
+				const groupId = "generate group id lol";
+				const group = {"group_id": groupId, "group_name": data.groupName, "admin": socket.id, "members": [socket.id]};
+				groups.push(group);
+				socket.join(group.group_id);
+			});
+
+		socket.on("join group", (data)=>
+			{
+				socket.join(groups.find((group)=> group.group_id == data.groupId).group_id);
+				socket.emit("joined group", data.id);
+			});
+
+		socket.on("send message", (data)=>
+			{
+				socket.to(data.group_id).emit("receive message", {"id": socket.id, "msg": data.msg})
+			});
+	});	
+
+// user to user communication channel
 ioUser.on("connection", (socket)=>
 	{
-
+		users.push({"user_name": socket.user_name, "id": socket.id, "groups": []});
 		// TODO(Felipe): replace socketId with userId later on.
 		socket.join(socket.id);
 		// informs other sockets a new user has connected and that they can talk to him.
 		socket.broadcast.emit("user connnected", {"id": socket.id});
-		socket.on("user connected", (data)=> socket.broadcast.emit("user connnected", {"id": socket.id}))
+		// rebroadcast to the new users the ids of the already connected ones
+		socket.on("user connected", (data)=> 
+			{
+				socket.broadcast.emit("user connnected", {"id": socket.id})
+			});
 		// watches on for send messages, and redirects it to the correct room.
 		socket.on("send message", (data)=>
 			{
-				ioUser.to(data.id).emit("receive message", {id: socket.id, msg: data.msg});
+				socket.to(data.id).emit("receive message", {"id": socket.id, "msg": data.msg});
 			});
+		// invitation event to signal to other user if they wish to join a group chat
+		socket.on("invite user", (data)=>
+			{
+				socket.to(data.id).emit("invitation", {})
+			})
 
 		socket.on("disconnect", (reason)=>
 			{
+				// server signals all current connected users who disconnected
 				ioUser.emit("user disconnected", {"id": socket.id});
 			});
 	});
