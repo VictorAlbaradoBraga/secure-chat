@@ -87,17 +87,19 @@ ioUser.on("connection", (socket)=>
 		socket.join(socket.id);
 		// informs other sockets a new user has connected and that they can talk to him.
 		socket.broadcast.emit("user connnected", {"id": socket.id, "user_name": socket.handshake.auth.user_name});
+
 		// rebroadcast to the new users the ids of the already connected ones
 		socket.on("user connected", (data)=> 
 			{
-				console.log(data.user_name);
 				socket.broadcast.emit("user connnected", {"id": socket.id, "user_name": data.user_name})
 			});
+
 		// watches on for send messages, and redirects it to the correct room.
 		socket.on("send message", (data)=>
 			{
 				socket.to(data.id).emit("receive message", {"id": socket.id, "sender": data.sender, "msg": data.msg});
 			});
+
 		// invitation event to signal to other user if they wish to join a group chat
 		socket.on("invite user", (data)=>
 			{
