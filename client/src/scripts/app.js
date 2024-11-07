@@ -1,10 +1,9 @@
 let me = {"id": null, "user_name": sessionStorage.getItem("user-name")};
 let friendId = null;
-let sharedKey = null;
 
 const socket = io("/users", {"auth": {"user_name": me.user_name}});
 const usersDiv = document.getElementById("users");
-const usersArr = [];
+const pairedKeys = [];
 const messagesDiv = document.getElementById("messages");
 
 socket.on("connect", ()=>
@@ -13,21 +12,26 @@ socket.on("connect", ()=>
   document.getElementById("user").textContent = `user name: ${me.user_name}`; 
 })
 
-socket.on("user connnected", (data)=>
+socket.on("user connected", (data)=>
 {
-  const userFound = usersArr.find((user) => user.id === data.id);
+  const userFound = pairedKeys.find((user) => user.id === data.id);
   if(!userFound)
   {
-    const newUser = {"id": data.id, "user_name": data.user_name};
+    const newUser = {"id": data.id, "user_name": data.user_name, "secret": null, "publicKey": null, "privateKey": null};
+    keyPair = createKeyPair(newUser.id);
+    newUser.publicKey = keyPair.publicKey;
+    newUser.privateKey = keyPair.privateKey;
+    pairedKeys.push(newUser);
     addUser(newUser);
-    usersArr.push(newUser);
-    socket.emit("user connected", {"id": me.id, "user_name": me.user_name});
+    socket.emit("notify", {"dest": newUser.id, "src": me.id, "user_name": me.user_name})
   }
 });
 
+socket.on("")
+
 socket.on("user disconnected", (data)=>
 {
-  const user = usersArr.find((userId) => userId === data.id);
+  const user = pairedKeys.find((userId) => userId === data.id);
   if(user) removeUser(user); 
 })
 
@@ -131,6 +135,28 @@ function storeMsg(id, sender, msg)
   const messages = JSON.parse(sessionStorage.getItem(key)) || [];
   messages.push({"sender": sender, "msg": msg});
   sessionStorage.setItem(key, JSON.stringify(messages));
+}
+
+// creates keypair [privateKey, publicKey] and sends publicKey to the new user
+function createKeyPair(id) {
+  // safe prime and generator gotten from RFC 3526
+  const algorithm = { name: "ECDH", namedCurve: "P-256" };
+  const keyPair = crypto.subtle.generateKey(algorithm, true, ["deriveKey", "deriveBits"]);
+
+  socket.emit("share public key", {"dest": id, "pubkey": keyPair.publicKey});
+
+  return keyPair;
+}
+
+//recieves publicKey from new user and calculates sharedSecrete from it;
+function createSharedSecrete(privateKey, publicKey){
+  const sharedSecret = window.crypto.subtle.deriveBits(
+    {"name": "ECDH", "public": publicKey},
+    privateKey,
+    256  // Number of bits of the derived secret
+  );
+
+  return sharedSecret;
 }
 
 function getMessagesKey(id)

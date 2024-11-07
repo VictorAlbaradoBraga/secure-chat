@@ -73,16 +73,15 @@ ioGroup.on("connection", (socket) => {
 
 // user to user communication channel
 ioUser.on("connection", (socket) => {
-  // users.push({"user_name": socket.user_name, "id": socket.id, "groups": []});
-  // TODO(Felipe): replace socketId with userId later on.
-
+  // TODO(Felipe): replace socketId with uuid later on.
   socket.join(socket.id);
+
   // informs other sockets a new user has connected and that they can talk to him.
-  socket.broadcast.emit("user connnected", { id: socket.id, user_name: socket.handshake.auth.user_name });
+  socket.broadcast.emit("user connected", { id: socket.id, user_name: socket.handshake.auth.user_name });
 
   // rebroadcast to the new users the ids of the already connected ones
-  socket.on("user connected", (data) => {
-    socket.broadcast.emit("user connnected", { id: socket.id, user_name: data.user_name });
+  socket.on("notify", (data) => {
+    socket.to(data.dest).emit("user connected", { id: data.src, user_name: data.user_name });
   });
 
   // watches on for send messages, and redirects it to the correct room.
@@ -99,6 +98,11 @@ ioUser.on("connection", (socket) => {
   socket.on("invite user", (data) => {
     socket.to(data.id).emit("invitation", {});
   });
+
+  socket.on("share key", (data)=>
+  {
+  	socket.to(data.id).emit("receive key", {"id": data.id, "key": data.key})
+  })
 
   // Armazenando as chaves compartilhadas
   const sharedKeys = {};  // Aqui é onde vamos armazenar as chaves compartilhadas
