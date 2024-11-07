@@ -91,12 +91,8 @@ ioUser.on("connection", (socket) => {
 
   // watches on for send messages, and redirects it to the correct room.
   socket.on("send message", (data) => {
-    // Verificar se a chave compartilhada do remetente corresponde à chave do destinatário
-    if (data.key === socket.sharedKey) {
-      socket.to(data.id).emit("receive message", { id: socket.id, sender: data.sender, msg: data.msg });
-    } else {
-      console.log(`Message from ${socket.id} to ${data.id} blocked: Keys don't match.`);
-    }
+  	console.log(`message from ${data.id} to ${data.sender}: ${new TextDecoder().decode(data.msg)}`)
+    socket.to(data.id).emit("receive message", { id: socket.id, sender: data.sender, msg: data.msg});
   });
 
   // invitation event to signal to other user if they wish to join a group chat
