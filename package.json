@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "Secure chat application developed for information security class, by the end of the class it should cover all pillars of infosec.",
   "dependencies": {
+    "egoroof-blowfish": "^4.0.1",
     "express": "^4.21.1",
     "socket.io": "^4.8.1"
   }

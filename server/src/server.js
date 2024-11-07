@@ -81,8 +81,13 @@ ioUser.on("connection", (socket) => {
 
   // rebroadcast to the new users the ids of the already connected ones
   socket.on("notify", (data) => {
-    socket.to(data.dest).emit("user connected", { id: data.src, user_name: data.user_name });
+    socket.to(data.dst).emit("notify", { src: data.src, user_name: data.user_name, key: data.key});
   });
+
+  socket.on("create secret", (data)=>
+  {
+  	socket.to(data.dst).emit("create secret", {src: data.src, key: data.key});
+  })
 
   // watches on for send messages, and redirects it to the correct room.
   socket.on("send message", (data) => {
