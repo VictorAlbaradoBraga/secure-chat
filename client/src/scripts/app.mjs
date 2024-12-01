@@ -123,18 +123,39 @@ socket.on("receive message", (data) =>
   if(friendId === data.id) displayMessage(data.sender, data.msg);
 });
 
+function clearMessages()
+{
+  // Remove all previous messages before displaying new ones
+  const messages = messagesDiv.childNodes;
+  messages.forEach(msg => msg.remove());
+}
+
 function displayMessage(sender, msg)
 {
   const user = pairedKeys.find((user) => user.id === friendId);
   const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
+
   const messageDiv = document.createElement("div");
   messageDiv.setAttribute("id", "message");
-  if(sender === me.id) sender = "you";
-  else sender = user.user_name;
-  const decryptoMessage = bf.decode(new Uint8Array(msg), Blowfish.TYPE.STRING);
-  console.log(decryptoMessage);
+  if(sender === me.id) {
+    sender = "you";
+  }
+  else {
+    sender = user.user_name;
+  }
+
+  const decryptoMessage = bf.decode(msg, Blowfish.TYPE.STRING);
   messageDiv.textContent = `${decryptoMessage} - sender: ${sender}`;
   messagesDiv.appendChild(messageDiv);
+}
+
+function storeMsg(id, sender, msg)
+{
+  const messages = JSON.parse(sessionStorage.getItem(id)) || [];
+  const time = new Date(Date.now());
+  const msg_json_array = JSON.stringify(Array.from(msg));
+  messages.push({"sender": sender, "msg": msg_json_array, "date": time.toLocaleString()});
+  sessionStorage.setItem(id, JSON.stringify(messages));
 }
 
 export function sendMessage()
@@ -148,30 +169,11 @@ export function sendMessage()
       const message = textbox.value;
       const cryptoMessage = bf.encode(message);
 
-      console.log(cryptoMessage.toString());
-
       storeMsg(friendId, me.id, cryptoMessage);
       displayMessage(me.id, cryptoMessage);
       socket.emit("send message", {"id": friendId, "sender": me.id, "msg": cryptoMessage});
       textbox.value = '';
   }
-}
-
-function storeMsg(id, sender, msg)
-{
-  const messages = JSON.parse(sessionStorage.getItem(id)) || [];
-  const time = new Date(Date.now());
-  console.log("storing message")
-  console.log(msg)
-  messages.push({"sender": sender, "msg": msg, "date": time.toLocaleString()});
-  sessionStorage.setItem(id, JSON.stringify(messages));
-}
-
-function clearMessages()
-{
-  // Remove all previous messages before displaying new ones
-  const messages = messagesDiv.childNodes;
-  messages.forEach(msg => msg.remove());
 }
 
 function addUser(user)
@@ -195,10 +197,10 @@ function removeUser(user)
 
 export function selectUser(element)
 {
-  friendId = element.getAttribute("data-user");
   clearMessages();
+  friendId = element.getAttribute("data-user");
   const messages = JSON.parse(sessionStorage.getItem(friendId)) || [];
-  messages.forEach(msg => displayMessage(msg.sender, msg.msg));
+  messages.forEach(msg => displayMessage(msg.sender, new Uint8Array(JSON.parse(msg.msg))));
 }
 
 window.sendMessage = sendMessage;
