@@ -24,6 +24,7 @@ app.get("/", (req, res) => {
   res.redirect("/welcome");
 });
 
+
 app.get("/welcome", (req, res) => {
   res.sendFile(path.join(staticFilesRoot, "pages/welcome.html"));
 });
