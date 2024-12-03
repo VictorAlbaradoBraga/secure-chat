@@ -2,10 +2,18 @@ const {createServer} = require("node:http");
 const express = require("express");
 const path = require("node:path");
 const {Server} = require("socket.io");
-const {randomUUID} = require("node:crypto")
+const {randomUUID} = require("node:crypto");
+const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require("bcrypt");
 
-const port = 6969;
+const port = 3000;
 const host = "127.0.0.1";
+
+const db = new sqlite3.Database(':memory:');
+
+db.serialize(()=>{
+  db.run("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL UNIQUE);")
+})
 
 const app = express();
 const server = createServer(app);
@@ -15,11 +23,14 @@ const io = new Server(server);
 const rootDir = process.cwd();
 const staticFilesRoot = path.join(rootDir, "client/src");
 
-// virtual path to server static files for the client
+// setting up middlewares
 app.use("/scripts", express.static(path.join(staticFilesRoot, "scripts/")));
 app.use("/pages", express.static(path.join(staticFilesRoot, "pages/")));
 app.use("/styles", express.static(path.join(staticFilesRoot, "styles/")));
+app.use(express.json());
 
+
+/*routes*/
 app.get("/", (req, res) => {
   res.redirect("/welcome");
 });
@@ -33,24 +44,79 @@ app.get("/home", (req, res) => {
   res.sendFile(path.join(staticFilesRoot, "pages/home.html"));
 });
 
-// when a new user is created it is assigned a room that has its unique ID(To Be Implemented)
-// to send a message to a different user that message payload must contain {userId, msg}
-// there will be two name spaces, one for users and one for groups. This will help separate group and user-to-user logic
+app.post("/api/login", (req, res) => {
+  const {username, password} = req.body;
+  
+  db.get("SELECT username, password FROM users WHERE username = ?;", [username], (err, user)=>{
+    if(err)
+    {
+      console.error("Error: ", error);
+      res.status(500).json({message: "Ocorreu um erro de conexão com o banco de dados"});
+    }else if (!user) {
+        console.log('User not found.');
+        res.status(500).json({message: "Username não existe no banco de dados"});
+    }else {
+      console.log('User found:', user);
+      if(user){
+        try
+        {
+          bcrypt.compare(password, user.password).then((match)=>{
+            if(match)
+            {
+              res.status(200).json({message: "Login successful!"}); 
+            }else
+            {
+              res.status(401).json({message: "Invalid credentials."});
+            }
+          });
+        }catch(err)
+        {
+          console.error('Error: ', error);
+          res.status(500).json({message: "Ocorreu um erro durante o login!"});
+        }
+      }
+    }
+  });
+});
 
-// current implementation: 
-//   *there is no unique userId
-//   *there is only session data persistence
-//   *there is no message encryption
+app.post("/api/register", (req, res) => {
+  const {username, password} = req.body;
+  const saltRound = 10;
 
+  db.get("SELECT username FROM users WHERE username = ?", [username], (err, row)=>{
+    if(err)
+    {
+      console.error("Error: ", error)
+    }else if(!row){
+      try
+      {
+        bcrypt.hash(password, saltRound).then((hash)=>{
+          db.run("INSERT INTO users VALUES (NULL, ?, ?)", [username, hash], (err, rowid)=>{
+            if(err)
+            {
+              console.log("Erro durante INSERT INTO: ", err);
+            }else
+            {
+              res.status(200).json({message: "Usuário registrado com sucesso"});
+            }
+          });
+        });
+      }catch(err)
+      {
+        console.error('Error during registration:', error);
+        res.status(500).json({message: "Ocorreu um erro durante o registro!"});
+      }
+    }else{
+      res.status(500).json({message: "Este usuário já existe"});
+    }
+  });
+});
+
+
+/*websocket events*/
 // defines namespaces to pipe data through different channels for users and groups;
 const ioUser = io.of("/users");
 const ioGroup = io.of("/groups");
-
-// array of connected users and array of groups:
-//   *users = [{"user_name": "user name", "id": <user id>, "groups": [<group ids>]}]
-//   *groups = [{"group_id": <group id>, "group_name": "group name", "admin": <user id>, "members": [<user id>]}]
-const users = [];
-const groups = [];
 
 // group to users/members communication channel
 ioGroup.on("connection", (socket) => {
@@ -138,4 +204,4 @@ ioUser.on("connection", (socket) => {
   });
 });
 
-server.listen(port, host, () => { console.log(`shits is running ${host}:${port}`) });
+server.listen(port, host, () => { console.log(`server is running on ${host}:${port}`) });

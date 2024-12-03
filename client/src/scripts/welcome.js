@@ -20,14 +20,14 @@ function displayMessage(message, success = true) {
 // Submissão do formulário de login
 document.getElementById("loginForm").addEventListener("submit", async function (event) {
   event.preventDefault(); // Impede o envio padrão do formulário
-  const username = document.getElementById("loginEmail").value;
+  const username = document.getElementById("loginUsername").value;
   const password = document.getElementById("loginPassword").value;
 
   try {
     const response = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
 
     const result = await response.json();
@@ -46,7 +46,7 @@ document.getElementById("loginForm").addEventListener("submit", async function (
 // Submissão do formulário de registro
 document.getElementById("registerForm").addEventListener("submit", async function (event) {
   event.preventDefault(); // Impede o envio padrão do formulário
-  const email = document.getElementById("registerEmail").value;
+  const username = document.getElementById("registerUsername").value;
   const password = document.getElementById("registerPassword").value;
   const confirmPassword = document.getElementById("confirmPassword").value;
 
@@ -59,7 +59,7 @@ document.getElementById("registerForm").addEventListener("submit", async functio
     const response = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
 
     const result = await response.json();
