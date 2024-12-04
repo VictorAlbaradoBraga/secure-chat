@@ -1,9 +1,9 @@
 import { Blowfish } from 'https://unpkg.com/egoroof-blowfish@4.0.1/dist/blowfish.mjs';
 
-let me = {"id": null, "user_name": sessionStorage.getItem("user-name")};
+let me = {"id": null, "username": sessionStorage.getItem("username")};
 let friendId = null;
 
-const socket = io("/users", {"auth": {"user_name": me.user_name}});
+const socket = io("/users", {"auth": {"username": me.username, "token": localStorage.getItem("accessToken")}});
 const usersDiv = document.getElementById("users");
 const pairedKeys = [];
 const messagesDiv = document.getElementById("messages");
@@ -11,7 +11,7 @@ const messagesDiv = document.getElementById("messages");
 socket.on("connect", ()=>
 {
   me.id = socket.id;
-  document.getElementById("user").textContent = `user name: ${me.user_name}`; 
+  document.getElementById("user").textContent = `user name: ${me.username}`; 
 })
 
 
@@ -39,7 +39,7 @@ socket.on("user connected", async (data)=>
 
     const jwkPublicKey = await window.crypto.subtle.exportKey("jwk", newUser.src.publicKey)
 
-    socket.emit("notify", {dst: newUser.id, src: me.id, user_name: me.user_name, key: jwkPublicKey});
+    socket.emit("notify", {dst: newUser.id, src: me.id, user_name: me.username, key: jwkPublicKey});
   }
 });
 
