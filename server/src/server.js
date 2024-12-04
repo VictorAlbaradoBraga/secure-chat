@@ -1,18 +1,51 @@
+require("dotenv").config();
+
 const {createServer} = require("node:http");
 const express = require("express");
 const path = require("node:path");
 const {Server} = require("socket.io");
 const {randomUUID} = require("node:crypto");
-const sqlite3 = require('sqlite3').verbose();
+const sqlite3 = require("sqlite3").verbose();
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken")
 
 const port = 3000;
 const host = "127.0.0.1";
 
-const db = new sqlite3.Database(':memory:');
+const db = new sqlite3.Database('./model/db');
 
 db.serialize(()=>{
-  db.run("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL UNIQUE);")
+  //users informations
+  db.run(`CREATE TABLE IF NOT EXISTS users(
+    id INTEGER PRIMARY KEY, 
+    username TEXT NOT NULL UNIQUE, 
+    password TEXT NOT NULL);`);
+
+  //friend list information
+  db.run(`CREATE TABLE IF NOT EXISTS friends(id INTEGER PRIMARY KEY,
+    id_friend1 INTEGER NOT NULL,
+    id_friend2 INTEGER NOT NULL,
+    FOREIGN KEY(id_friend1) REFERENCES users(id),
+    FOREIGN KEY(id_friend2) REFERENCES users(id));`);
+
+  //groups information
+  db.run(
+  `CREATE TABLE IF NOT EXISTS groups (
+    id INTEGER PRIMARY KEY, 
+    admin INTEGER NOT NULL, 
+    group_name TEXT NOT NULL, 
+    FOREIGN KEY(admin) REFERENCES users(id)
+  );`);
+
+  //group members list information
+  db.run(
+  `CREATE TABLE IF NOT EXISTS group_members (
+    id INTEGER PRIMARY KEY, 
+    group_id INTEGER NOT NULL, 
+    user INTEGER NOT NULL, 
+    FOREIGN KEY(group_id) REFERENCES groups(id), 
+    FOREIGN KEY(user) REFERENCES users(id)
+  );`);
 })
 
 const app = express();
@@ -31,6 +64,23 @@ app.use(express.json());
 
 
 /*routes*/
+function authenticateUser(req, res, next){
+  const token = req.query.token;
+  if(!token){
+    console.log("error sem token"); 
+    return res.sendStatus(400);
+  }
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) =>{
+    if(err) {
+      console.log(err);
+      return res.sendStatus(403);
+    }
+    req.user = user;
+    next();
+  });
+}
+
 app.get("/", (req, res) => {
   res.redirect("/welcome");
 });
@@ -40,20 +90,65 @@ app.get("/welcome", (req, res) => {
   res.sendFile(path.join(staticFilesRoot, "pages/welcome.html"));
 });
 
-app.get("/home", (req, res) => {
-  res.sendFile(path.join(staticFilesRoot, "pages/home.html"));
+app.get("/chat", authenticateUser, (req, res) => {
+  if (!req.user) {
+    return res.redirect("/"); // Ends the response here
+  }
+  res.sendFile(path.join(staticFilesRoot, "pages/chat.html"));
+});
+
+app.get("/admin/api/users", (req, res)=>{
+  db.get("SELECT * FROM users;", (err, row)=>{
+    if(row){ 
+      res.status(200).json({row});
+    }else {
+      res.status(500).json({message: "no users registered"})
+    }
+  });
 });
 
 app.post("/api/login", (req, res) => {
+  const { username, password } = req.body;
+
+  db.get("SELECT username, password FROM users WHERE username = ?;", [username], (err, user) => {
+    if (err) {
+      console.error("Error: ", err); // Fixed variable name
+      return res.status(500).json({ message: "Ocorreu um erro de conexão com o banco de dados" }); // Ends response
+    } else if (!user) {
+      return res.status(404).json({ message: "Username não existe no banco de dados" }); // Ends response
+    } else {
+      console.log("User found:", user);
+      bcrypt.compare(password, user.password)
+        .then((match) => {
+          if (match) {
+            const payload = { username: user.username };
+            const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15s" });
+            return res.status(200).json({ message: "Login successful!", accessToken }); // Ends response
+          } else {
+            return res.status(401).json({ message: "Invalid credentials." }); // Ends response
+          }
+        })
+        .catch((error) => {
+          console.error("Error: ", error);
+          return res.status(500).json({ message: "Ocorreu um erro durante o login!" }); // Ends response
+        });
+    }
+  });
+});
+
+/*
+app.post("/api/login", (req, res) => {
+  if(!req.user) res.redirect("/");
+
   const {username, password} = req.body;
   
+  //search the database if there is a match for the username
   db.get("SELECT username, password FROM users WHERE username = ?;", [username], (err, user)=>{
-    if(err)
+    if(err) //catches any error during the processing of the query
     {
       console.error("Error: ", error);
       res.status(500).json({message: "Ocorreu um erro de conexão com o banco de dados"});
-    }else if (!user) {
-        console.log('User not found.');
+    }else if (!user) { // Usuário não encontrado
         res.status(500).json({message: "Username não existe no banco de dados"});
     }else {
       console.log('User found:', user);
@@ -63,7 +158,10 @@ app.post("/api/login", (req, res) => {
           bcrypt.compare(password, user.password).then((match)=>{
             if(match)
             {
-              res.status(200).json({message: "Login successful!"}); 
+              const payload = {"username": user.username}
+              const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {"expiresIn": "15s"});
+              console.log(res.status);
+              res.status(200).json({"message": "Login successful!", "accessToken": accessToken});
             }else
             {
               res.status(401).json({message: "Invalid credentials."});
@@ -78,12 +176,12 @@ app.post("/api/login", (req, res) => {
     }
   });
 });
-
+*/
 app.post("/api/register", (req, res) => {
   const {username, password} = req.body;
   const saltRound = 10;
 
-  db.get("SELECT username FROM users WHERE username = ?", [username], (err, row)=>{
+  db.get("SELECT username FROM users WHERE username = ?;", [username], (err, row)=>{
     if(err)
     {
       console.error("Error: ", error)
@@ -91,7 +189,7 @@ app.post("/api/register", (req, res) => {
       try
       {
         bcrypt.hash(password, saltRound).then((hash)=>{
-          db.run("INSERT INTO users VALUES (NULL, ?, ?)", [username, hash], (err, rowid)=>{
+          db.run("INSERT INTO users VALUES (NULL, ?, ?);", [username, hash], (err, rowid)=>{
             if(err)
             {
               console.log("Erro durante INSERT INTO: ", err);
@@ -109,6 +207,25 @@ app.post("/api/register", (req, res) => {
     }else{
       res.status(500).json({message: "Este usuário já existe"});
     }
+  });
+});
+
+/*websocket middlewares*/
+io.use((socket, next) => {
+  const token = socket.handshake.headers['auth'];
+
+  if (!token) {
+    return next(new Error('Authorization token is required'));
+  }
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return next(new Error('Invalid token'));
+    }
+
+    // Add the decoded data to the socket object for later use
+    socket.user = decoded;
+    next();
   });
 });
 
@@ -141,6 +258,7 @@ ioGroup.on("connection", (socket) => {
 // user to user communication channel
 ioUser.on("connection", (socket) => {
   // TODO(Felipe): replace socketId with uuid later on.
+  console.log(socket.user);
   socket.join(socket.id);
 
   // informs other sockets a new user has connected and that they can talk to him.
