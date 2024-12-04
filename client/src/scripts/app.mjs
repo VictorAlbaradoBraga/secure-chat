@@ -14,11 +14,20 @@ socket.on("connect", ()=>
   document.getElementById("user").textContent = `user name: ${me.username}`; 
 })
 
+
+/*
+  ciclo de troca de chaves: novo usuário conecta e envia user connected para todos os usuários->
+  usuários conectados enviam notify para o novo usuário contendo a chave pública ->
+  novo usuário é notificado cria sua própria chave pública e envia para os outros usuários com o evento create secret ->
+  agora todos os usuários devem possuir uma chave secreta única para cada usuário conectado.
+*/
+
 socket.on("user connected", async (data)=>
 {
   const userFound = pairedKeys.find((user) => user.id === data.id);
   if(!userFound)
   {
+    //              id e usuar name do usuário conectado;   segredo compartilhado apenas entre dst e src -> dst outro usuário src o próprio usuário
     const newUser = {"id": data.id, "username": data.username, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
 
     const keyPair = await createKeyPair();
@@ -75,9 +84,9 @@ socket.on("create secret", async (data)=>
     const sharedSecret = await createSharedSecret(privateKey, publicKey);
 
     console.log("shared key:");
-    console.log(sharedSecret);
+    console.log(new Uint8Array(sharedSecret));
 
-    pairedKeys[pairedKeys.indexOf(userFound)].secret = new Uint8Array(sharedSecret);;
+    pairedKeys[pairedKeys.indexOf(userFound)].secret = new Uint8Array(sharedSecret);
   } 
 })
 
@@ -90,6 +99,7 @@ async function createKeyPair() {
 
 //recieves publicKey from new user and calculates sharedSecrete from it;
 async function createSharedSecret(privateKey, publicKey){
+  console.log("create shared key")
   const sharedSecret = await window.crypto.subtle.deriveBits(
     {"name": "ECDH", "public": publicKey},
     privateKey,
@@ -108,9 +118,9 @@ socket.on("user disconnected", (data)=>
 socket.on("receive message", (data) => 
 {
   const user = pairedKeys.find((user) => user.id === data.id);
-  console.log(`user found ${user}`);
   if(user){
-    storeMsg(data.sender, data.sender, new Uint8Array(data.msg), user.secret);
+    const messageEncoded = new Uint8Array(data.msg);
+    storeMsg(data.sender, data.sender, messageEncoded, user.secret);
     if(friendId === data.id) displayMessage(data.sender, data.msg, user.secret);
   }
 });
@@ -124,17 +134,19 @@ function clearMessages()
 
 function displayMessage(sender, msg, secret)
 {
-  let msgSender = sender;
   const bf = new Blowfish(secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
+  let senderMsg = sender;
+
+  if(sender === me.id) {
+    senderMsg = "you";
+  }
 
   const messageDiv = document.createElement("div");
   messageDiv.setAttribute("id", "message");
-  if(sender === me.username) {
-    msgSender = "you";
-  }
 
   const decryptoMessage = bf.decode(msg, Blowfish.TYPE.STRING);
-  messageDiv.textContent = `${decryptoMessage} - sender: ${msgSender}`;
+  messageDiv.textContent = `${decryptoMessage} - sender: ${senderMsg}`;
+
   messagesDiv.appendChild(messageDiv);
 }
 
@@ -142,14 +154,14 @@ function storeMsg(sender, keyhalf, msg, secret)
 {
   const key = `${me.username}_${keyhalf}`;
   const messages = JSON.parse(localStorage.getItem(key)) || [];
+  const time = new Date(Date.now());
   const msg_json_array = JSON.stringify(Array.from(msg));
   const secret_json_array = JSON.stringify(Array.from(secret));
   messages.push({"sender": sender, "msg": msg_json_array, "secret": secret_json_array});
-  console.log(messages);
   localStorage.setItem(key, JSON.stringify(messages));
 }
 
-function sendMessage()
+export function sendMessage()
 {
   if(friendId)
   {
@@ -160,10 +172,10 @@ function sendMessage()
       const message = textbox.value;
       const cryptoMessage = bf.encode(message);
 
-      console.log(`sending message to ${user.username} with secret ${user.secret}`);
-
       storeMsg(me.username, user.username, cryptoMessage, user.secret);
+
       displayMessage(me.username, cryptoMessage, user.secret);
+
       socket.emit("send message", {"id": friendId, "sender": me.username, "msg": cryptoMessage});
       textbox.value = '';
   }
@@ -179,7 +191,6 @@ function addUser(user)
   userElement.setAttribute("data-username", user.username);
   userElement.setAttribute("onclick", "selectUser(this)");
 
-  console.log(user.username);
   userElement.textContent = user.username;
   usersDiv.appendChild(userElement);
 }
@@ -195,13 +206,14 @@ export function selectUser(element)
   clearMessages();
   friendId = element.getAttribute("data-userid");
   const friendUsername = element.getAttribute("data-username");
-  const messages = JSON.parse(localStorage.getItem(`${me.username}_${friendUsername}`)) || [];
+
+  const key = `${me.username}_${friendUsername}`;
+  const messages = JSON.parse(localStorage.getItem(key)) || [];
   messages.forEach(msg => {
-    console.log(`messages ${msg.secret}`);
-    const decodeMsg = new Uint8Array(JSON.parse(msg.msg));
-    const decodeSecret = new Uint8Array(JSON.parse(msg.secret));
-    console.log(JSON.parse(msg.secret));
-    displayMessage(msg.sender, decodeMsg, decodeSecret);
+    console.log(msg);
+    const messageParsed = new Uint8Array(JSON.parse(msg.msg));
+    const secretParsed = new Uint8Array(JSON.parse(msg.secret));
+    displayMessage(msg.sender, messageParsed, secretParsed);
   });
 }
 
