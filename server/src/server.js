@@ -98,11 +98,16 @@ app.get("/chat", authenticateUser, (req, res) => {
 });
 
 app.get("/admin/api/users", (req, res)=>{
-  db.get("SELECT * FROM users;", (err, row)=>{
-    if(row){ 
-      res.status(200).json({row});
-    }else {
-      res.status(500).json({message: "no users registered"})
+  db.all("SELECT * FROM users;", (err, rows) => {
+    if (err) {
+      console.error("Database query error:", err);
+      return res.status(500).json({ message: "Erro ao buscar os usuários no banco de dados" });
+    }
+
+    if (rows && rows.length > 0) {
+      return res.status(200).json({ users: rows });
+    } else {
+      return res.status(404).json({ message: "Nenhum usuário registrado" });
     }
   });
 });
@@ -136,84 +141,48 @@ app.post("/api/login", (req, res) => {
   });
 });
 
-/*
-app.post("/api/login", (req, res) => {
-  if(!req.user) res.redirect("/");
-
-  const {username, password} = req.body;
-  
-  //search the database if there is a match for the username
-  db.get("SELECT username, password FROM users WHERE username = ?;", [username], (err, user)=>{
-    if(err) //catches any error during the processing of the query
-    {
-      console.error("Error: ", error);
-      res.status(500).json({message: "Ocorreu um erro de conexão com o banco de dados"});
-    }else if (!user) { // Usuário não encontrado
-        res.status(500).json({message: "Username não existe no banco de dados"});
-    }else {
-      console.log('User found:', user);
-      if(user){
-        try
-        {
-          bcrypt.compare(password, user.password).then((match)=>{
-            if(match)
-            {
-              const payload = {"username": user.username}
-              const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {"expiresIn": "15s"});
-              console.log(res.status);
-              res.status(200).json({"message": "Login successful!", "accessToken": accessToken});
-            }else
-            {
-              res.status(401).json({message: "Invalid credentials."});
-            }
-          });
-        }catch(err)
-        {
-          console.error('Error: ', error);
-          res.status(500).json({message: "Ocorreu um erro durante o login!"});
-        }
-      }
-    }
-  });
-});
-*/
 app.post("/api/register", (req, res) => {
-  const {username, password} = req.body;
-  const saltRound = 10;
+  const { username, password } = req.body;
+  const saltRounds = 10;
 
-  db.get("SELECT username FROM users WHERE username = ?;", [username], (err, row)=>{
-    if(err)
-    {
-      console.error("Error: ", error)
-    }else if(!row){
-      try
-      {
-        bcrypt.hash(password, saltRound).then((hash)=>{
-          db.run("INSERT INTO users VALUES (NULL, ?, ?);", [username, hash], (err, rowid)=>{
-            if(err)
-            {
-              console.log("Erro durante INSERT INTO: ", err);
-            }else
-            {
-              res.status(200).json({message: "Usuário registrado com sucesso"});
-            }
-          });
-        });
-      }catch(err)
-      {
-        console.error('Error during registration:', error);
-        res.status(500).json({message: "Ocorreu um erro durante o registro!"});
-      }
-    }else{
-      res.status(500).json({message: "Este usuário já existe"});
+  db.get("SELECT username FROM users WHERE username = ?;", [username], (err, row) => {
+    if (err) {
+      console.error("Database query error: ", err);
+      return res.status(500).json({ message: "Erro ao verificar o usuário no banco de dados" });
     }
+
+    if (row) {
+      // User already exists
+      return res.status(409).json({ message: "Este usuário já existe" });
+    }
+
+    // User does not exist, proceed with registration
+    bcrypt
+      .hash(password, saltRounds)
+      .then((hash) => {
+        db.run("INSERT INTO users VALUES (NULL, ?, ?);", [username, hash], (err) => {
+          if (err) {
+            console.error("Erro durante o INSERT INTO: ", err);
+            return res.status(500).json({ message: "Erro ao registrar o usuário no banco de dados" });
+          }
+
+          return res.status(200).json({ message: "Usuário registrado com sucesso" });
+        });
+      })
+      .catch((error) => {
+        console.error("Error hashing password: ", error);
+        return res.status(500).json({ message: "Erro ao processar o registro do usuário" });
+      });
   });
 });
 
-/*websocket middlewares*/
-io.use((socket, next) => {
-  const token = socket.handshake.headers['auth'];
+/*websocket events*/
+// defines namespaces to pipe data through different channels for users and groups;
+const ioUser = io.of("/users");
+const ioGroup = io.of("/groups");
 
+ioUser.use((socket, next) => {
+  const token = socket.handshake.auth['token'];
   if (!token) {
     return next(new Error('Authorization token is required'));
   }
@@ -222,18 +191,11 @@ io.use((socket, next) => {
     if (err) {
       return next(new Error('Invalid token'));
     }
-
-    // Add the decoded data to the socket object for later use
     socket.user = decoded;
+    console.log(decoded)
     next();
   });
 });
-
-
-/*websocket events*/
-// defines namespaces to pipe data through different channels for users and groups;
-const ioUser = io.of("/users");
-const ioGroup = io.of("/groups");
 
 // group to users/members communication channel
 ioGroup.on("connection", (socket) => {
@@ -258,8 +220,7 @@ ioGroup.on("connection", (socket) => {
 // user to user communication channel
 ioUser.on("connection", (socket) => {
   // TODO(Felipe): replace socketId with uuid later on.
-  console.log(socket.user);
-  socket.join(socket.id);
+  socket.join(socket.user.username);
 
   // informs other sockets a new user has connected and that they can talk to him.
   socket.broadcast.emit("user connected", { id: socket.id, user_name: socket.handshake.auth.user_name });
