@@ -28,7 +28,7 @@ socket.on("user connected", async (data)=>
   if(!userFound)
   {
     //              id e usuar name do usuário conectado;   segredo compartilhado apenas entre dst e src -> dst outro usuário src o próprio usuário
-    const newUser = {"id": data.id, "user_name": data.user_name, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
+    const newUser = {"id": data.id, "username": data.username, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
 
     const keyPair = await createKeyPair();
     newUser.src.publicKey = keyPair.publicKey;
@@ -39,7 +39,7 @@ socket.on("user connected", async (data)=>
 
     const jwkPublicKey = await window.crypto.subtle.exportKey("jwk", newUser.src.publicKey)
 
-    socket.emit("notify", {dst: newUser.id, src: me.id, user_name: me.username, key: jwkPublicKey});
+    socket.emit("notify", {dst: newUser.id, src: me.id, username: me.username, key: jwkPublicKey});
   }
 });
 
@@ -48,7 +48,7 @@ socket.on("notify", async (data)=>
   const userFound = pairedKeys.find((user) => user.id === data.src);
   if(!userFound)
   {
-    const newUser = {"id": data.src, "user_name": data.user_name, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
+    const newUser = {"id": data.src, "username": data.username, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
     
     const keyPair = await createKeyPair();
     newUser.src.publicKey = keyPair.publicKey;
@@ -127,7 +127,7 @@ function clearMessages()
 {
   // Remove all previous messages before displaying new ones
   const messages = messagesDiv.childNodes;
-  messages.forEach(msg => msg.remove());
+  Array.from(messages).forEach(msg => msg.remove());
 }
 
 function displayMessage(sender, msg)
@@ -141,7 +141,7 @@ function displayMessage(sender, msg)
     sender = "you";
   }
   else {
-    sender = user.user_name;
+    sender = user.username;
   }
 
   const decryptoMessage = bf.decode(msg, Blowfish.TYPE.STRING);
@@ -185,7 +185,7 @@ function addUser(user)
   userElement.setAttribute("data-user", user.id);
   userElement.setAttribute("onclick", "selectUser(this)");
 
-  userElement.textContent = user.user_name;
+  userElement.textContent = user.username;
   usersDiv.appendChild(userElement);
 }
 
