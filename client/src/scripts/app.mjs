@@ -14,21 +14,12 @@ socket.on("connect", ()=>
   document.getElementById("user").textContent = `user name: ${me.username}`; 
 })
 
-
-/*
-  ciclo de troca de chaves: novo usuário conecta e envia user connected para todos os usuários->
-  usuários conectados enviam notify para o novo usuário contendo a chave pública ->
-  novo usuário é notificado cria sua própria chave pública e envia para os outros usuários com o evento create secret ->
-  agora todos os usuários devem possuir uma chave secreta única para cada usuário conectado.
-*/
-
 socket.on("user connected", async (data)=>
 {
   const userFound = pairedKeys.find((user) => user.id === data.id);
   if(!userFound)
   {
-    //              id e usuar name do usuário conectado;   segredo compartilhado apenas entre dst e src -> dst outro usuário src o próprio usuário
-    const newUser = {"id": data.id, "user_name": data.user_name, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
+    const newUser = {"id": data.id, "username": data.username, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
 
     const keyPair = await createKeyPair();
     newUser.src.publicKey = keyPair.publicKey;
@@ -39,7 +30,7 @@ socket.on("user connected", async (data)=>
 
     const jwkPublicKey = await window.crypto.subtle.exportKey("jwk", newUser.src.publicKey)
 
-    socket.emit("notify", {dst: newUser.id, src: me.id, user_name: me.username, key: jwkPublicKey});
+    socket.emit("notify", {dst: newUser.id, src: me.id, username: me.username, key: jwkPublicKey});
   }
 });
 
@@ -48,7 +39,7 @@ socket.on("notify", async (data)=>
   const userFound = pairedKeys.find((user) => user.id === data.src);
   if(!userFound)
   {
-    const newUser = {"id": data.src, "user_name": data.user_name, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
+    const newUser = {"id": data.src, "username": data.username, "secret": null, dst: {publicKey: null}, src: {publicKey: null, privateKey: null}};
     
     const keyPair = await createKeyPair();
     newUser.src.publicKey = keyPair.publicKey;
@@ -84,9 +75,9 @@ socket.on("create secret", async (data)=>
     const sharedSecret = await createSharedSecret(privateKey, publicKey);
 
     console.log("shared key:");
-    console.log(new Uint8Array(sharedSecret));
+    console.log(sharedSecret);
 
-    pairedKeys[pairedKeys.indexOf(userFound)].secret = new Uint8Array(sharedSecret);
+    pairedKeys[pairedKeys.indexOf(userFound)].secret = new Uint8Array(sharedSecret);;
   } 
 })
 
@@ -99,7 +90,6 @@ async function createKeyPair() {
 
 //recieves publicKey from new user and calculates sharedSecrete from it;
 async function createSharedSecret(privateKey, publicKey){
-  console.log("create shared key")
   const sharedSecret = await window.crypto.subtle.deriveBits(
     {"name": "ECDH", "public": publicKey},
     privateKey,
@@ -117,48 +107,49 @@ socket.on("user disconnected", (data)=>
 
 socket.on("receive message", (data) => 
 {
-  console.log("message received")
-  console.log(data.msg)
-  storeMsg(data.id, data.sender, new Uint8Array(data.msg));
-  if(friendId === data.id) displayMessage(data.sender, data.msg);
+  const user = pairedKeys.find((user) => user.id === data.id);
+  console.log(`user found ${user}`);
+  if(user){
+    storeMsg(data.sender, data.sender, new Uint8Array(data.msg), user.secret);
+    if(friendId === data.id) displayMessage(data.sender, data.msg, user.secret);
+  }
 });
 
 function clearMessages()
 {
   // Remove all previous messages before displaying new ones
   const messages = messagesDiv.childNodes;
-  messages.forEach(msg => msg.remove());
+  Array.from(messages).forEach(msg => msg.remove());
 }
 
-function displayMessage(sender, msg)
+function displayMessage(sender, msg, secret)
 {
-  const user = pairedKeys.find((user) => user.id === friendId);
-  const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
+  let msgSender = sender;
+  const bf = new Blowfish(secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
 
   const messageDiv = document.createElement("div");
   messageDiv.setAttribute("id", "message");
-  if(sender === me.id) {
-    sender = "you";
-  }
-  else {
-    sender = user.user_name;
+  if(sender === me.username) {
+    msgSender = "you";
   }
 
   const decryptoMessage = bf.decode(msg, Blowfish.TYPE.STRING);
-  messageDiv.textContent = `${decryptoMessage} - sender: ${sender}`;
+  messageDiv.textContent = `${decryptoMessage} - sender: ${msgSender}`;
   messagesDiv.appendChild(messageDiv);
 }
 
-function storeMsg(id, sender, msg)
+function storeMsg(sender, keyhalf, msg, secret)
 {
-  const messages = JSON.parse(sessionStorage.getItem(id)) || [];
-  const time = new Date(Date.now());
+  const key = `${me.username}_${keyhalf}`;
+  const messages = JSON.parse(localStorage.getItem(key)) || [];
   const msg_json_array = JSON.stringify(Array.from(msg));
-  messages.push({"sender": sender, "msg": msg_json_array, "date": time.toLocaleString()});
-  sessionStorage.setItem(id, JSON.stringify(messages));
+  const secret_json_array = JSON.stringify(Array.from(secret));
+  messages.push({"sender": sender, "msg": msg_json_array, "secret": secret_json_array});
+  console.log(messages);
+  localStorage.setItem(key, JSON.stringify(messages));
 }
 
-export function sendMessage()
+function sendMessage()
 {
   if(friendId)
   {
@@ -169,9 +160,11 @@ export function sendMessage()
       const message = textbox.value;
       const cryptoMessage = bf.encode(message);
 
-      storeMsg(friendId, me.id, cryptoMessage);
-      displayMessage(me.id, cryptoMessage);
-      socket.emit("send message", {"id": friendId, "sender": me.id, "msg": cryptoMessage});
+      console.log(`sending message to ${user.username} with secret ${user.secret}`);
+
+      storeMsg(me.username, user.username, cryptoMessage, user.secret);
+      displayMessage(me.username, cryptoMessage, user.secret);
+      socket.emit("send message", {"id": friendId, "sender": me.username, "msg": cryptoMessage});
       textbox.value = '';
   }
 }
@@ -181,11 +174,13 @@ function addUser(user)
   const userElement = document.createElement("a");
   userElement.setAttribute("href", "#");
   userElement.setAttribute("id", user.id);
-  userElement.setAttribute("class", "user-link")
-  userElement.setAttribute("data-user", user.id);
+  userElement.setAttribute("class", "user-link");
+  userElement.setAttribute("data-userid", user.id);
+  userElement.setAttribute("data-username", user.username);
   userElement.setAttribute("onclick", "selectUser(this)");
 
-  userElement.textContent = user.user_name;
+  console.log(user.username);
+  userElement.textContent = user.username;
   usersDiv.appendChild(userElement);
 }
 
@@ -198,9 +193,16 @@ function removeUser(user)
 export function selectUser(element)
 {
   clearMessages();
-  friendId = element.getAttribute("data-user");
-  const messages = JSON.parse(sessionStorage.getItem(friendId)) || [];
-  messages.forEach(msg => displayMessage(msg.sender, new Uint8Array(JSON.parse(msg.msg))));
+  friendId = element.getAttribute("data-userid");
+  const friendUsername = element.getAttribute("data-username");
+  const messages = JSON.parse(localStorage.getItem(`${me.username}_${friendUsername}`)) || [];
+  messages.forEach(msg => {
+    console.log(`messages ${msg.secret}`);
+    const decodeMsg = new Uint8Array(JSON.parse(msg.msg));
+    const decodeSecret = new Uint8Array(JSON.parse(msg.secret));
+    console.log(JSON.parse(msg.secret));
+    displayMessage(msg.sender, decodeMsg, decodeSecret);
+  });
 }
 
 window.sendMessage = sendMessage;
