@@ -33,8 +33,8 @@ document.getElementById("loginForm").addEventListener("submit", async function (
     if (response.ok) {
       const result = await response.json();
       displayMessage("Login realizado com sucesso!");
+      sessionStorage.setItem("username", username);
       localStorage.setItem("accessToken", result.accessToken);
-
       window.location.href = `/chat/?token=${encodeURIComponent(result.accessToken)}`; // Redireciona para o sistema
     } else {
       displayMessage(result.message || "Erro ao logar", false);
