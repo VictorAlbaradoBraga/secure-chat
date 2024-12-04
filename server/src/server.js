@@ -223,11 +223,11 @@ ioUser.on("connection", (socket) => {
   socket.join(socket.user.username);
 
   // informs other sockets a new user has connected and that they can talk to him.
-  socket.broadcast.emit("user connected", { id: socket.id, username: socket.handshake.auth.username });
+  socket.broadcast.emit("user connected", { id: socket.id, user_name: socket.handshake.auth.user_name });
 
   // rebroadcast to the new users the ids of the already connected ones
   socket.on("notify", (data) => {
-    socket.to(data.dst).emit("notify", { src: data.src, username: data.username, key: data.key});
+    socket.to(data.dst).emit("notify", { src: data.src, user_name: data.user_name, key: data.key});
   });
 
   socket.on("create secret", (data)=>
