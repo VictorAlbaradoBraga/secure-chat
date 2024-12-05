@@ -3,7 +3,14 @@ import { Blowfish } from 'https://unpkg.com/egoroof-blowfish@4.0.1/dist/blowfish
 let me = {"id": null, "username": sessionStorage.getItem("username")};
 let friendId = null;
 
-const socket = io("/users", {"auth": {"username": me.username, "token": localStorage.getItem("accessToken")}});
+const socket = io("/users", 
+  {"auth": 
+    {
+      "username": me.username, 
+      "token": localStorage.getItem("accessToken"),
+      "refresh": localStorage.getItem("refreshToken"),
+    }
+  });
 const usersDiv = document.getElementById("users");
 const pairedKeys = [];
 const messagesDiv = document.getElementById("messages");
@@ -112,6 +119,7 @@ async function createSharedSecret(privateKey, publicKey){
 socket.on("user disconnected", (data)=>
 {
   const user = pairedKeys.find((user) => user.id === data.id);
+  if(user.id === friendId) friendId = null;
   if(user) removeUser(user); 
 })
 
@@ -137,7 +145,7 @@ function displayMessage(sender, msg, secret)
   const bf = new Blowfish(secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
   let senderMsg = sender;
 
-  if(sender === me.id) {
+  if(sender === me.username) {
     senderMsg = "you";
   }
 
