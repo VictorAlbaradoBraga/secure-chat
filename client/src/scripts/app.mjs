@@ -7,7 +7,7 @@ const socket = io("/users",
   {"auth": 
     {
       "username": me.username, 
-      "token": localStorage.getItem("accessToken"),
+      "token": sessionStorage.getItem("accessToken"),
       "refresh": localStorage.getItem("refreshToken"),
     }
   });
@@ -174,7 +174,7 @@ async function isFriend(friendUsername){
   const response = await fetchWithTokenRetry(`/api/isFriend?friendUsername=${encodeURIComponent(friendUsername)}`, {
     method: "GET",
     headers: {
-      "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+      "Authorization": `Bearer ${sessionStorage.getItem("accessToken")}`,
     },
   });
 
@@ -191,6 +191,7 @@ async function sendMessage()
   if(friendId)
   {
       const user = pairedKeys.find((user) => user.id === friendId);
+      console.log(user.username);
       if(await isFriend(user.username)){
         const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
 
@@ -258,7 +259,7 @@ async function refreshToken() {
 
     if (response.ok) {
       const data = await response.json();
-      localStorage.setItem("accessToken", data.accessToken); // Save new access token
+      sessionStorage.setItem("accessToken", data.accessToken); // Save new access token
       return data.accessToken;
     } else {
       throw new Error("Failed to refresh token");
@@ -301,7 +302,7 @@ async function addFriend() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+          "Authorization": `Bearer ${sessionStorage.getItem("accessToken")}`,
         },
         body: JSON.stringify({ friendUsername }),
       });

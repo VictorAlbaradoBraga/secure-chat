@@ -34,7 +34,7 @@ document.getElementById("loginForm").addEventListener("submit", async function (
       const result = await response.json();
       displayMessage("Login realizado com sucesso!");
       sessionStorage.setItem("username", username);
-      localStorage.setItem("accessToken", result.accessToken);
+      sessionStorage.setItem("accessToken", result.accessToken);
       localStorage.setItem("refreshToken", result.refreshToken);
 
       const pageResponse = await fetch("/chat", {

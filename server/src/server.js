@@ -245,17 +245,21 @@ app.post("/api/addFriend", authenticateUser, (req, res) => {
 // Verifica se dois usuários são amigos
 app.get("/api/isFriend/", authenticateUser, (req, res) => {
   const { friendUsername } = req.query;
+  console.log(friendUsername);
   if (!friendUsername) {
+    console.log("friendUsername está vazio");
     return res.status(400).json({ message: "No username given!" });
   }
 
   db.get("SELECT * FROM users WHERE username = ?", [req.user.username], (err, user1) => {
     if (err || !user1) {
+      console.log(`não foi possível achar user1 ${user1.username}`);
       return res.status(404).json({ message: `Unable to find user: ${req.user.username}` });
     }
 
     db.get("SELECT * FROM users WHERE username = ?", [friendUsername], (err, user2) => {
       if (err || !user2) {
+        console.log(`não foi possível achar user1 ${user2.username}`);
         return res.status(404).json({ message: `Unable to find user: ${friendUsername}` });
       }
 
@@ -270,9 +274,12 @@ app.get("/api/isFriend/", authenticateUser, (req, res) => {
             return res.status(500).json({ message: "Internal server error" });
           }
           if (!match) {
+            console.log(`${user1.id} and ${user2.id}`)
+            console.log(`não existe amizade entre user1 e user2`);
             return res.status(404).json({ message: "Users are not friends" });
           }
           // Users are friends, send a response
+          console.log(`match ${match}`);
           return res.status(200).json({ isFriend: true });
         }
       );
