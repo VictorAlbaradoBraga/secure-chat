@@ -35,6 +35,7 @@ document.getElementById("loginForm").addEventListener("submit", async function (
       displayMessage("Login realizado com sucesso!");
       sessionStorage.setItem("username", username);
       localStorage.setItem("accessToken", result.accessToken);
+
       window.location.href = `/chat/?token=${encodeURIComponent(result.accessToken)}`; // Redireciona para o sistema
     } else {
       displayMessage(result.message || "Erro ao logar", false);

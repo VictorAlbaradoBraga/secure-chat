@@ -112,6 +112,10 @@ app.get("/admin/api/users", (req, res)=>{
   });
 });
 
+app.post("/token", (req, res)=>{
+
+});
+
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -219,9 +223,7 @@ ioGroup.on("connection", (socket) => {
 
 // user to user communication channel
 ioUser.on("connection", (socket) => {
-  // TODO(Felipe): replace socketId with uuid later on.
-  socket.join(socket.user.username);
-
+    
   // informs other sockets a new user has connected and that they can talk to him.
   socket.broadcast.emit("user connected", { id: socket.id, username: socket.handshake.auth.username });
 
@@ -240,42 +242,6 @@ ioUser.on("connection", (socket) => {
   	console.log(`message from ${data.id} to ${data.sender}: ${new TextDecoder().decode(data.msg)}`)
     socket.to(data.id).emit("receive message", { id: socket.id, sender: data.sender, msg: data.msg});
   });
-
-  // invitation event to signal to other user if they wish to join a group chat
-  socket.on("invite user", (data) => {
-    socket.to(data.id).emit("invitation", {});
-  });
-
-  socket.on("share key", (data)=>
-  {
-  	socket.to(data.id).emit("receive key", {"id": data.id, "key": data.key})
-  })
-
-  // Armazenando as chaves compartilhadas
-  const sharedKeys = {};  // Aqui é onde vamos armazenar as chaves compartilhadas
-
-  socket.on("user pair connected", (data) => {
-	// Sort the IDs to ensure the key is always the same regardless of the order
-	const pairId = [data.user1, data.user2].sort().join("_");
-  
-	// Check if a shared key already exists for this pair
-	if (!sharedKeys[pairId]) {
-	  // If not, generate and store a new key
-	  const sharedKey = randomUUID();
-	  sharedKeys[pairId] = sharedKey;
-	  console.log(`Shared key between ${data.user1} and ${data.user2}: ${sharedKey}`);
-	} else {
-	  // Otherwise, retrieve the existing key
-	  const sharedKey = sharedKeys[pairId];
-	}
-  
-	// Store the shared key in the socket
-	socket.sharedKey = sharedKeys[pairId];
-  
-	// Send the shared key to both users
-	socket.emit("shared key", { key: sharedKeys[pairId] });
-	socket.broadcast.to(data.user2).emit("shared key", { key: sharedKeys[pairId] });
-  });  
 
   socket.on("disconnect", (reason) => {
     // server signals all current connected users who disconnected

@@ -112,6 +112,7 @@ async function createSharedSecret(privateKey, publicKey){
 socket.on("user disconnected", (data)=>
 {
   const user = pairedKeys.find((user) => user.id === data.id);
+  if(user.id === friendId) friendId = null;
   if(user) removeUser(user); 
 })
 
@@ -137,7 +138,7 @@ function displayMessage(sender, msg, secret)
   const bf = new Blowfish(secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
   let senderMsg = sender;
 
-  if(sender === me.id) {
+  if(sender === me.username) {
     senderMsg = "you";
   }
 
