@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,15 +12,19 @@
 			<div class="user" id="user"></div>
 			<div class="groups" id="groups"></div>
 			<button onclick="addFriend()">Adicionar Amigo</button>
+			<!-- Botão para criar grupo -->
+			<button id="createGroupButton">Criar Grupo</button>
+			<!-- Botão para sair do grupo -->
+			<button id="leaveGroupButton">Sair do Grupo</button>
 		</div>
 		<div class="chat">
 			<div class="messages" id="messages"></div>	
-			<input type="text" id="textbox" placeholder="type something"/>
-			<button id="sendMessage" onclick="sendMessage()">Send Message</button>
+			<input type="text" id="textbox" placeholder="Digite algo..."/>
+			<button id="sendMessage" onclick="sendMessage()">Enviar Mensagem</button>
 		</div>
-
-		<script src="/socket.io/socket.io.js"></script>
-		<script type="module" src="/scripts/app.mjs"></script>
 	</div>
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="module" src="/scripts/app.mjs"></script>
 </body>
 </html>

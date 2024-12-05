@@ -1,4 +1,5 @@
 import { Blowfish } from 'https://unpkg.com/egoroof-blowfish@4.0.1/dist/blowfish.mjs';
+import { createGroup, sendGroupMessage, leaveGroup } from './groupManagement.mjs';
 
 let me = {"id": null, "username": sessionStorage.getItem("username")};
 let friendId = null;
@@ -255,6 +256,15 @@ function addFriend() {
     });
   }
 }
+// Adicionando um botão para criar grupo
+document.getElementById("createGroupButton").onclick = createGroup;
+
+// Adicionando a função de enviar mensagem no grupo
+document.getElementById("sendMessage").onclick = sendGroupMessage;
+
+// Adicionando a função de sair do grupo
+document.getElementById("leaveGroupButton").onclick = leaveGroup;
+
 
 window.sendMessage = sendMessage;
 window.selectUser = selectUser;
