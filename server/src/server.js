@@ -221,12 +221,12 @@ app.post("/api/addFriend", authenticateUser, (req, res) => {
   db.get("SELECT * FROM users WHERE username = ?", [req.user.username], (err, user1)=>{
     if(err)
     {
-      return res.status(500).json({ message: "Erro ao adicionar amigo." });
+      return res.status(404).json({ message: "Erro ao adicionar amigo." });
     }
     db.get("SELECT * FROM users WHERE username = ?", [friendUsername], (err, user2)=>{
       if(err)
       {
-        return res.status(500).json({ message: "Erro ao adicionar amigo." });
+        return res.status(404).json({ message: "Erro ao adicionar amigo." });
       }
       db.run(
         "INSERT INTO friends VALUES(NULL, ?, ?);",
@@ -239,38 +239,45 @@ app.post("/api/addFriend", authenticateUser, (req, res) => {
       });
     });
   });
-
-  /*db.run(
-    "INSERT INTO friends(id_friend1, id_friend2) VALUES(?, ?);",
-    [req.user.id, friendId, friendId, req.user.id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ message: "Erro ao adicionar amigo." });
-      }
-      res.status(200).json({ message: "Amigo adicionado com sucesso!" });
-    }
-  );*/
 });
 
-// Verifica se dois usuários são amigos
-app.get("/api/isFriend/:friendId", authenticateUser, (req, res) => {
-  const { friendUsername } = req.body;
-  if(!friendUsername) return res.status(400).json({message: "no username given!"});
 
-  db.get(
-    "SELECT * FROM friends WHERE (id_friend1 = ? AND id_friend2 = ?) OR (id_friend1 = ? AND id_friend2 = ?);",
-    [req.user.id, friendId, friendId, req.user.id],
-    (err, row) => {
-      if (err) {
-        return res.status(500).json({ message: "Erro ao verificar amizade." });
-      }
-      if (row) {
-        res.status(200).json({ isFriend: true });
-      } else {
-        res.status(200).json({ isFriend: false });
-      }
+// Verifica se dois usuários são amigos
+app.get("/api/isFriend/", authenticateUser, (req, res) => {
+  const { friendUsername } = req.query;
+  if (!friendUsername) {
+    return res.status(400).json({ message: "No username given!" });
+  }
+
+  db.get("SELECT * FROM users WHERE username = ?", [req.user.username], (err, user1) => {
+    if (err || !user1) {
+      return res.status(404).json({ message: `Unable to find user: ${req.user.username}` });
     }
-  );
+
+    db.get("SELECT * FROM users WHERE username = ?", [friendUsername], (err, user2) => {
+      if (err || !user2) {
+        return res.status(404).json({ message: `Unable to find user: ${friendUsername}` });
+      }
+
+      db.get(
+        `SELECT * FROM friends 
+         WHERE (id_friend1 = ? AND id_friend2 = ?) 
+         OR (id_friend1 = ? AND id_friend2 = ?)`,
+        [user1.id, user2.id, user2.id, user1.id],
+        (err, match) => {
+          if (err) {
+            console.error("Database error:", err);
+            return res.status(500).json({ message: "Internal server error" });
+          }
+          if (!match) {
+            return res.status(404).json({ message: "Users are not friends" });
+          }
+          // Users are friends, send a response
+          return res.status(200).json({ isFriend: true });
+        }
+      );
+    });
+  });
 });
 
 /*websocket events*/

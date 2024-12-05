@@ -169,23 +169,42 @@ function storeMsg(sender, keyhalf, msg, secret)
   localStorage.setItem(key, JSON.stringify(messages));
 }
 
-export function sendMessage()
+async function isFriend(friendUsername){
+
+  const response = await fetchWithTokenRetry(`/api/isFriend?friendUsername=${encodeURIComponent(friendUsername)}`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+    },
+  });
+
+  if (response.ok) {
+    return true;
+  } else {
+    return false;
+  }
+
+}
+
+async function sendMessage()
 {
   if(friendId)
   {
       const user = pairedKeys.find((user) => user.id === friendId);
-      const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
+      if(await isFriend(user.username)){
+        const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
 
-      const textbox = document.getElementById("textbox");
-      const message = textbox.value;
-      const cryptoMessage = bf.encode(message);
+        const textbox = document.getElementById("textbox");
+        const message = textbox.value;
+        const cryptoMessage = bf.encode(message);
 
-      storeMsg(me.username, user.username, cryptoMessage, user.secret);
+        storeMsg(me.username, user.username, cryptoMessage, user.secret);
 
-      displayMessage(me.username, cryptoMessage, user.secret);
+        displayMessage(me.username, cryptoMessage, user.secret);
 
-      socket.emit("send message", {"id": friendId, "sender": me.username, "msg": cryptoMessage});
-      textbox.value = '';
+        socket.emit("send message", {"id": friendId, "sender": me.username, "msg": cryptoMessage});
+        textbox.value = '';
+      }
   }
 }
 
@@ -263,7 +282,7 @@ async function fetchWithTokenRetry(url, options) {
       if (newAccessToken) {
         // Retry the original request with the new token
         options.headers.Authorization = `Bearer ${newAccessToken}`;
-        return fetch(url, options);
+        return await fetch(url, options);
       }
     }
 
