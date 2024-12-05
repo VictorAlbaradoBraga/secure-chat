@@ -311,7 +311,7 @@ ioGroup.on("connection", (socket) => {
 
   socket.on("send message", (data) => {
     socket.to(data.group_id).emit("receive message", { id: socket.id, msg: data.msg });
-	console.log(`Sent key: ${sharedKey}`);
+  console.log(`Sent key: ${sharedKey}`);
   });
 });
 
@@ -327,12 +327,12 @@ ioUser.on("connection", (socket) => {
 
   socket.on("create secret", (data)=>
   {
-  	socket.to(data.dst).emit("create secret", {src: data.src, key: data.key});
+    socket.to(data.dst).emit("create secret", {src: data.src, key: data.key});
   })
 
   // watches on for send messages, and redirects it to the correct room.
   socket.on("send message", (data) => {
-  	console.log(`message from ${data.id} to ${data.sender}: ${new TextDecoder().decode(data.msg)}`)
+    console.log(`message from ${data.id} to ${data.sender}: ${new TextDecoder().decode(data.msg)}`)
     socket.to(data.id).emit("receive message", { id: socket.id, sender: data.sender, msg: data.msg});
   });
 
