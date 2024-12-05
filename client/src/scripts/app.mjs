@@ -234,7 +234,82 @@ export function selectUser(element)
   });
 }
 
-function addFriend() {
+async function refreshToken() {
+  try {
+    const response = await fetch("/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refreshToken: localStorage.getItem("refreshToken"),
+        })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      localStorage.setItem("accessToken", data.accessToken); // Save new access token
+      return data.accessToken;
+    } else {
+      throw new Error("Failed to refresh token");
+    }
+  } catch (err) {
+    console.error("Error refreshing token:", err);
+    alert("Sua sessão expirou. Faça login novamente.");
+    window.location.href = "/welcome"; // Redirect to login
+    return null;
+  }
+}
+
+async function fetchWithTokenRetry(url, options) {
+  try {
+    // Attempt the fetch request
+    const response = await fetch(url, options);
+
+    if (response.status === 401) {
+      // Token might have expired, try refreshing it
+      const newAccessToken = await refreshToken();
+      if (newAccessToken) {
+        // Retry the original request with the new token
+        options.headers.Authorization = `Bearer ${newAccessToken}`;
+        return fetch(url, options);
+      }
+    }
+
+    return response; // Return original response if no 401 or after retry
+  } catch (err) {
+    console.error("Fetch request failed:", err);
+    throw err; // Propagate error to the caller
+  }
+}
+
+async function addFriend() {
+  const friendUsername = prompt("Digite o nome de usuário do amigo:");
+  if (friendUsername) {
+    try {
+      const response = await fetchWithTokenRetry("/api/addFriend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+        body: JSON.stringify({ friendUsername }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message);
+      } else {
+        alert(data.message || "Erro ao adicionar amigo.");
+      }
+    } catch (err) {
+      console.error("Erro ao adicionar amigo:", err);
+      alert("Erro ao adicionar amigo.");
+    }
+  }
+}
+
+/*function addFriend() {
   const friedUsername = prompt("Digite o nome de usuário do amigo:");
   if (friendUsername) {
     fetch("/api/addFriend", {
@@ -254,7 +329,7 @@ function addFriend() {
       alert("Erro ao adicionar amigo.");
     });
   }
-}
+}*/
 
 window.sendMessage = sendMessage;
 window.selectUser = selectUser;

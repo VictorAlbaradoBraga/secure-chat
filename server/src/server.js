@@ -65,7 +65,6 @@ app.use(express.json());
 
 /*routes*/
 function authenticateUser(req, res, next){
-  console.log(req.headers);
   const token = req.headers.authorization?.split(" ")[1];
   //const token = req.query.token;
   if(!token){
@@ -76,7 +75,7 @@ function authenticateUser(req, res, next){
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) =>{
     if(err) {
       console.log(err);
-      return res.sendStatus(403);
+      return res.sendStatus(401);
     }
     req.user = user;
     next();
@@ -114,14 +113,30 @@ app.get("/admin/api/users", (req, res)=>{
   });
 });
 
+app.get("/admin/api/friends", (req, res)=>{
+  db.all("SELECT * FROM friends;", (err, rows) => {
+    if (err) {
+      console.error("Database query error:", err);
+      return res.status(500).json({ message: "Erro ao buscar os usuários no banco de dados" });
+    }
+
+    if (rows && rows.length > 0) {
+      return res.status(200).json({ users: rows });
+    } else {
+      return res.status(404).json({ message: "Nenhum usuário registrado" });
+    }
+  });
+})
+
 app.post("/token", (req, res)=>{
+  console.log(req.body);
   const refreshToken = req.body.refreshToken;
   if(!refreshToken) return res.status(401);
   if(!refresh.includes(refreshToken)) return res.status(403);
-  jtw.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, user)=>{
+  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user)=>{
     if(err) return res.status(403);
-    const accessToken = jwt.sign({username: user.username}, ACCESS_TOKEN_SECRET);
-    res.json({accessToken});
+    const accessToken = jwt.sign({username: user.username}, process.env.ACCESS_TOKEN_SECRET);
+    res.status(200).json({accessToken});
   })
 });
 
@@ -195,13 +210,37 @@ app.post("/api/register", (req, res) => {
 
 // Adiciona um amigo
 app.post("/api/addFriend", authenticateUser, (req, res) => {
+
+  console.log("authorized request");
   const { friendUsername } = req.body;
 
   if (req.user.username === friendUsername) {
     return res.status(400).json({ message: "Você não pode ser amigo de si mesmo!" });
   }
 
-  db.run(
+  db.get("SELECT * FROM users WHERE username = ?", [req.user.username], (err, user1)=>{
+    if(err)
+    {
+      return res.status(500).json({ message: "Erro ao adicionar amigo." });
+    }
+    db.get("SELECT * FROM users WHERE username = ?", [friendUsername], (err, user2)=>{
+      if(err)
+      {
+        return res.status(500).json({ message: "Erro ao adicionar amigo." });
+      }
+      db.run(
+        "INSERT INTO friends VALUES(NULL, ?, ?);",
+        [user1.id, user2.id],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Erro ao adicionar amigo." });
+          }
+          res.status(200).json({ message: "Amigo adicionado com sucesso!" });
+      });
+    });
+  });
+
+  /*db.run(
     "INSERT INTO friends(id_friend1, id_friend2) VALUES(?, ?);",
     [req.user.id, friendId, friendId, req.user.id],
     function (err) {
@@ -210,12 +249,13 @@ app.post("/api/addFriend", authenticateUser, (req, res) => {
       }
       res.status(200).json({ message: "Amigo adicionado com sucesso!" });
     }
-  );
+  );*/
 });
 
 // Verifica se dois usuários são amigos
 app.get("/api/isFriend/:friendId", authenticateUser, (req, res) => {
-  const { friendId } = req.params;
+  const { friendUsername } = req.body;
+  if(!friendUsername) return res.status(400).json({message: "no username given!"});
 
   db.get(
     "SELECT * FROM friends WHERE (id_friend1 = ? AND id_friend2 = ?) OR (id_friend1 = ? AND id_friend2 = ?);",
