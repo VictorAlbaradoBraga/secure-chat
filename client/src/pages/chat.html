@@ -11,15 +11,38 @@
 		<div class="users" id="users">
 			<div class="user" id="user"></div>
 			<div class="groups" id="groups"></div>
+			<button id="addFriend" onclick="openAddFriendModal()">Add Friend</button>
+			<button id="createGroup" onclick="openCreateGroupModal()">Create Group</button>
 		</div>
 		<div class="chat">
 			<div class="messages" id="messages"></div>	
 			<input type="text" id="textbox" placeholder="type something"/>
 			<button id="sendMessage" onclick="sendMessage()">Send Message</button>
 		</div>
-
-		<script src="/socket.io/socket.io.js"></script>
-		<script type="module" src="/scripts/app.mjs"></script>
 	</div>
+
+	<!-- Modal for Add Friend -->
+	<div id="addFriendModal" class="modal">
+		<div class="modal-content">
+			<span class="close" onclick="closeAddFriendModal()">&times;</span>
+			<h2>Add Friend</h2>
+			<input type="text" id="friendUsername" placeholder="Enter username">
+			<button onclick="sendFriendRequest()">Send Friend Request</button>
+		</div>
+	</div>
+
+	<!-- Modal for Create Group -->
+	<div id="createGroupModal" class="modal">
+		<div class="modal-content">
+			<span class="close" onclick="closeCreateGroupModal()">&times;</span>
+			<h2>Create Group</h2>
+			<input type="text" id="groupName" placeholder="Group Name">
+			<input type="text" id="groupMembers" placeholder="Enter usernames (comma separated)">
+			<button onclick="createGroup()">Create Group</button>
+		</div>
+	</div>
+
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="module" src="/scripts/app.mjs"></script>
 </body>
 </html>

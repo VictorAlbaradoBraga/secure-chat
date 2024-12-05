@@ -1,143 +1,63 @@
+// server.js
 require("dotenv").config();
 
-const {createServer} = require("node:http");
+const { createServer } = require("node:http");
 const express = require("express");
 const path = require("node:path");
-const {Server} = require("socket.io");
-const {randomUUID} = require("node:crypto");
-const sqlite3 = require("sqlite3").verbose();
+const { Server } = require("socket.io");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken")
-
-const port = 3000;
-const host = "127.0.0.1";
-
-const db = new sqlite3.Database('./model/db');
-
-db.serialize(()=>{
-  //users informations
-  db.run(`CREATE TABLE IF NOT EXISTS users(
-    id INTEGER PRIMARY KEY, 
-    username TEXT NOT NULL UNIQUE, 
-    password TEXT NOT NULL);`);
-
-  //friend list information
-  db.run(`CREATE TABLE IF NOT EXISTS friends(id INTEGER PRIMARY KEY,
-    id_friend1 INTEGER NOT NULL,
-    id_friend2 INTEGER NOT NULL,
-    FOREIGN KEY(id_friend1) REFERENCES users(id),
-    FOREIGN KEY(id_friend2) REFERENCES users(id));`);
-
-  //groups information
-  db.run(
-  `CREATE TABLE IF NOT EXISTS groups (
-    id INTEGER PRIMARY KEY, 
-    admin INTEGER NOT NULL, 
-    group_name TEXT NOT NULL, 
-    FOREIGN KEY(admin) REFERENCES users(id)
-  );`);
-
-  //group members list information
-  db.run(
-  `CREATE TABLE IF NOT EXISTS group_members (
-    id INTEGER PRIMARY KEY, 
-    group_id INTEGER NOT NULL, 
-    user INTEGER NOT NULL, 
-    FOREIGN KEY(group_id) REFERENCES groups(id), 
-    FOREIGN KEY(user) REFERENCES users(id)
-  );`);
-})
+const jwt = require("jsonwebtoken");
+const db = require("./db");
+const { authenticateUser } = require("./auth");
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
 
-// gets root directory for the npm project and joins with client src
+const port = 3000;
+const host = "127.0.0.1";
+
 const rootDir = process.cwd();
 const staticFilesRoot = path.join(rootDir, "client/src");
 
-// setting up middlewares
+// Configuração de middlewares
 app.use("/scripts", express.static(path.join(staticFilesRoot, "scripts/")));
 app.use("/pages", express.static(path.join(staticFilesRoot, "pages/")));
 app.use("/styles", express.static(path.join(staticFilesRoot, "styles/")));
 app.use(express.json());
 
+// Rotas
+app.get("/", (req, res) => res.redirect("/welcome"));
 
-/*routes*/
-function authenticateUser(req, res, next){
-  const token = req.query.token;
-  if(!token){
-    console.log("error sem token"); 
-    return res.sendStatus(400);
-  }
-
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) =>{
-    if(err) {
-      console.log(err);
-      return res.sendStatus(403);
-    }
-    req.user = user;
-    next();
-  });
-}
-
-app.get("/", (req, res) => {
-  res.redirect("/welcome");
-});
-
-
-app.get("/welcome", (req, res) => {
-  res.sendFile(path.join(staticFilesRoot, "pages/welcome.html"));
-});
+app.get("/welcome", (req, res) => res.sendFile(path.join(staticFilesRoot, "pages/welcome.html")));
 
 app.get("/chat", authenticateUser, (req, res) => {
-  if (!req.user) {
-    return res.redirect("/"); // Ends the response here
-  }
+  if (!req.user) return res.redirect("/");
   res.sendFile(path.join(staticFilesRoot, "pages/chat.html"));
 });
 
-app.get("/admin/api/users", (req, res)=>{
+app.get("/admin/api/users", (req, res) => {
   db.all("SELECT * FROM users;", (err, rows) => {
     if (err) {
-      console.error("Database query error:", err);
-      return res.status(500).json({ message: "Erro ao buscar os usuários no banco de dados" });
+      console.error("Erro no banco de dados:", err);
+      return res.status(500).json({ message: "Erro ao buscar os usuários" });
     }
-
-    if (rows && rows.length > 0) {
-      return res.status(200).json({ users: rows });
-    } else {
-      return res.status(404).json({ message: "Nenhum usuário registrado" });
-    }
+    return res.status(200).json({ users: rows.length > 0 ? rows : "Nenhum usuário encontrado" });
   });
 });
 
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
+  db.get("SELECT username, password FROM users WHERE username = ?", [username], (err, user) => {
+    if (err || !user) return res.status(404).json({ message: "Usuário não encontrado" });
 
-  db.get("SELECT username, password FROM users WHERE username = ?;", [username], (err, user) => {
-    if (err) {
-      console.error("Error: ", err); // Fixed variable name
-      return res.status(500).json({ message: "Ocorreu um erro de conexão com o banco de dados" }); // Ends response
-    } else if (!user) {
-      return res.status(404).json({ message: "Username não existe no banco de dados" }); // Ends response
-    } else {
-      console.log("User found:", user);
-      bcrypt.compare(password, user.password)
-        .then((match) => {
-          if (match) {
-            const payload = { username: user.username };
-            const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15s" });
-            return res.status(200).json({ message: "Login successful!", accessToken }); // Ends response
-          } else {
-            return res.status(401).json({ message: "Invalid credentials." }); // Ends response
-          }
-        })
-        .catch((error) => {
-          console.error("Error: ", error);
-          return res.status(500).json({ message: "Ocorreu um erro durante o login!" }); // Ends response
-        });
-    }
+    bcrypt.compare(password, user.password).then((match) => {
+      if (match) {
+        const token = jwt.sign({ username: user.username }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
+        return res.status(200).json({ message: "Login bem-sucedido!", token });
+      }
+      res.status(401).json({ message: "Credenciais inválidas" });
+    });
   });
 });
 
@@ -145,142 +65,76 @@ app.post("/api/register", (req, res) => {
   const { username, password } = req.body;
   const saltRounds = 10;
 
-  db.get("SELECT username FROM users WHERE username = ?;", [username], (err, row) => {
-    if (err) {
-      console.error("Database query error: ", err);
-      return res.status(500).json({ message: "Erro ao verificar o usuário no banco de dados" });
-    }
+  db.get("SELECT username FROM users WHERE username = ?", [username], (err, row) => {
+    if (row) return res.status(409).json({ message: "Usuário já existe" });
 
-    if (row) {
-      // User already exists
-      return res.status(409).json({ message: "Este usuário já existe" });
-    }
-
-    // User does not exist, proceed with registration
-    bcrypt
-      .hash(password, saltRounds)
-      .then((hash) => {
-        db.run("INSERT INTO users VALUES (NULL, ?, ?);", [username, hash], (err) => {
-          if (err) {
-            console.error("Erro durante o INSERT INTO: ", err);
-            return res.status(500).json({ message: "Erro ao registrar o usuário no banco de dados" });
-          }
-
-          return res.status(200).json({ message: "Usuário registrado com sucesso" });
-        });
-      })
-      .catch((error) => {
-        console.error("Error hashing password: ", error);
-        return res.status(500).json({ message: "Erro ao processar o registro do usuário" });
+    bcrypt.hash(password, saltRounds).then((hash) => {
+      db.run("INSERT INTO users VALUES (NULL, ?, ?)", [username, hash], (err) => {
+        if (err) return res.status(500).json({ message: "Erro ao registrar o usuário" });
+        res.status(200).json({ message: "Usuário registrado com sucesso" });
       });
+    });
   });
 });
 
-/*websocket events*/
-// defines namespaces to pipe data through different channels for users and groups;
+// WebSocket
 const ioUser = io.of("/users");
 const ioGroup = io.of("/groups");
 
 ioUser.use((socket, next) => {
-  const token = socket.handshake.auth['token'];
-  if (!token) {
-    return next(new Error('Authorization token is required'));
-  }
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error("Token obrigatório"));
 
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    if (err) {
-      return next(new Error('Invalid token'));
-    }
-    socket.user = decoded;
-    console.log(decoded)
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) return next(new Error("Token inválido"));
+    socket.user = user;
     next();
   });
 });
 
-// group to users/members communication channel
-ioGroup.on("connection", (socket) => {
-  socket.on("create group", (data) => {
-    const groupId = randomUUID();
-    const group = { group_id: groupId, group_name: data.groupName, admin: socket.id, members: [socket.id] };
-    groups.push(group);
-    socket.join(group.group_id);
-  });
-
-  socket.on("join group", (data) => {
-    socket.join(groups.find((group) => group.group_id == data.groupId).group_id);
-    socket.emit("joined group", data.id);
-  });
-
-  socket.on("send message", (data) => {
-    socket.to(data.group_id).emit("receive message", { id: socket.id, msg: data.msg });
-	console.log(`Sent key: ${sharedKey}`);
-  });
-});
-
-// user to user communication channel
+// Usuários conectados
 ioUser.on("connection", (socket) => {
-  // TODO(Felipe): replace socketId with uuid later on.
-  socket.join(socket.user.username);
+  console.log(`Usuário ${socket.user.username} conectado`);
 
-  // informs other sockets a new user has connected and that they can talk to him.
-  socket.broadcast.emit("user connected", { id: socket.id, username: socket.handshake.auth.username });
-
-  // rebroadcast to the new users the ids of the already connected ones
-  socket.on("notify", (data) => {
-    socket.to(data.dst).emit("notify", { src: data.src, username: data.username, key: data.key});
+  // Enviar solicitação de amizade
+  socket.on("send friend request", (data) => {
+    const { from, to } = data;
+    socket.broadcast.emit("receive friend request", { from });
   });
 
-  socket.on("create secret", (data)=>
-  {
-  	socket.to(data.dst).emit("create secret", {src: data.src, key: data.key});
-  })
-
-  // watches on for send messages, and redirects it to the correct room.
-  socket.on("send message", (data) => {
-  	console.log(`message from ${data.id} to ${data.sender}: ${new TextDecoder().decode(data.msg)}`)
-    socket.to(data.id).emit("receive message", { id: socket.id, sender: data.sender, msg: data.msg});
+  // Aceitar solicitação de amizade
+  socket.on("accept friend request", (data) => {
+    const { from, to } = data;
+    socket.broadcast.emit("friend request accepted", { from });
   });
 
-  // invitation event to signal to other user if they wish to join a group chat
-  socket.on("invite user", (data) => {
-    socket.to(data.id).emit("invitation", {});
-  });
-
-  socket.on("share key", (data)=>
-  {
-  	socket.to(data.id).emit("receive key", {"id": data.id, "key": data.key})
-  })
-
-  // Armazenando as chaves compartilhadas
-  const sharedKeys = {};  // Aqui é onde vamos armazenar as chaves compartilhadas
-
-  socket.on("user pair connected", (data) => {
-	// Sort the IDs to ensure the key is always the same regardless of the order
-	const pairId = [data.user1, data.user2].sort().join("_");
-  
-	// Check if a shared key already exists for this pair
-	if (!sharedKeys[pairId]) {
-	  // If not, generate and store a new key
-	  const sharedKey = randomUUID();
-	  sharedKeys[pairId] = sharedKey;
-	  console.log(`Shared key between ${data.user1} and ${data.user2}: ${sharedKey}`);
-	} else {
-	  // Otherwise, retrieve the existing key
-	  const sharedKey = sharedKeys[pairId];
-	}
-  
-	// Store the shared key in the socket
-	socket.sharedKey = sharedKeys[pairId];
-  
-	// Send the shared key to both users
-	socket.emit("shared key", { key: sharedKeys[pairId] });
-	socket.broadcast.to(data.user2).emit("shared key", { key: sharedKeys[pairId] });
-  });  
-
-  socket.on("disconnect", (reason) => {
-    // server signals all current connected users who disconnected
-    ioUser.emit("user disconnected", { id: socket.id });
+  // Enviar mensagem para amigo
+  socket.on("send friend message", (data) => {
+    const { to, msg } = data;
+    socket.to(to).emit("receive friend message", { from: socket.user.username, msg });
   });
 });
 
-server.listen(port, host, () => { console.log(`server is running on ${host}:${port}`) });
+// Gerenciar grupos
+ioGroup.on("connection", (socket) => {
+  console.log(`Usuário ${socket.user.username} entrou no grupo`);
+
+  // Criar grupo
+  socket.on("create group", (data) => {
+    const group = { groupId: randomUUID(), groupName: data.groupName, members: data.members };
+    socket.broadcast.emit("group created", group);
+  });
+
+  // Enviar mensagem para grupo
+  socket.on("send group message", (data) => {
+    const { groupId, msg } = data;
+    socket.to(groupId).emit("receive group message", { groupId, sender: socket.user.username, msg });
+  });
+});
+
+// Função para gerar IDs aleatórios (UUID)
+function randomUUID() {
+  return crypto.randomUUID();
+}
+
+server.listen(port, host, () => console.log(`Servidor rodando em ${host}:${port}`));
