@@ -3,14 +3,7 @@ import { Blowfish } from 'https://unpkg.com/egoroof-blowfish@4.0.1/dist/blowfish
 let me = {"id": null, "username": sessionStorage.getItem("username")};
 let friendId = null;
 
-const socket = io("/users", 
-  {"auth": 
-    {
-      "username": me.username, 
-      "token": localStorage.getItem("accessToken"),
-      "refresh": localStorage.getItem("refreshToken"),
-    }
-  });
+const socket = io("/users", {"auth": {"username": me.username, "token": localStorage.getItem("accessToken")}});
 const usersDiv = document.getElementById("users");
 const pairedKeys = [];
 const messagesDiv = document.getElementById("messages");
@@ -119,7 +112,6 @@ async function createSharedSecret(privateKey, publicKey){
 socket.on("user disconnected", (data)=>
 {
   const user = pairedKeys.find((user) => user.id === data.id);
-  if(user.id === friendId) friendId = null;
   if(user) removeUser(user); 
 })
 
@@ -145,7 +137,7 @@ function displayMessage(sender, msg, secret)
   const bf = new Blowfish(secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
   let senderMsg = sender;
 
-  if(sender === me.username) {
+  if(sender === me.id) {
     senderMsg = "you";
   }
 
@@ -172,10 +164,15 @@ function storeMsg(sender, keyhalf, msg, secret)
 export function sendMessage() {
   if (friendId) {
     // Verifica se são amigos antes de enviar a mensagem
-    fetch(`/api/isFriend/${friendId}`, { method: "GET", headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` } })
+    fetch(`/api/isFriend/${friendId}`, {
+      method: "GET", 
+      headers: { 
+        "Authorization": `Bearer ${localStorage.getItem("accessToken")}` 
+      },
+      body: JSON.stringify({ friendId }), 
+    })
       .then(response => response.json())
       .then(data => {
-        console.log(data)
         if (data.isFriend) {
           const user = pairedKeys.find((user) => user.id === friendId);
           const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
@@ -236,7 +233,7 @@ export function selectUser(element)
 }
 
 function addFriend() {
-  const friendId = prompt("Digite o ID do amigo:");
+  const friendId = prompt("Digite o username do amigo:");
   if (friendId) {
     fetch(`/api/addFriend?token=${localStorage.getItem("accessToken")}`, {
       method: "POST",
@@ -244,7 +241,7 @@ function addFriend() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ friendId }),
-    })    
+    })
     .then(response => response.json())
     .then(data => {
       alert(data.message);
