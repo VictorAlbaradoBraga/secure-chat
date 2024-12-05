@@ -65,7 +65,9 @@ app.use(express.json());
 
 /*routes*/
 function authenticateUser(req, res, next){
-  const token = req.query.token;
+  console.log(req.headers);
+  const token = req.headers.authorization?.split(" ")[1];
+  //const token = req.query.token;
   if(!token){
     console.log("error sem token"); 
     return res.sendStatus(400);
@@ -94,7 +96,7 @@ app.get("/chat", authenticateUser, (req, res) => {
   if (!req.user) {
     return res.redirect("/"); // Ends the response here
   }
-  res.sendFile(path.join(staticFilesRoot, "pages/chat.html"));
+  res.status(200).sendFile(path.join(staticFilesRoot, "pages/chat.html"));
 });
 
 app.get("/admin/api/users", (req, res)=>{
@@ -193,14 +195,14 @@ app.post("/api/register", (req, res) => {
 
 // Adiciona um amigo
 app.post("/api/addFriend", authenticateUser, (req, res) => {
-  const { friendId } = req.body;
+  const { friendUsername } = req.body;
 
-  if (req.user.username === friendId) {
+  if (req.user.username === friendUsername) {
     return res.status(400).json({ message: "Você não pode ser amigo de si mesmo!" });
   }
 
   db.run(
-    "INSERT INTO friends(id_friend1, id_friend2) VALUES(?, ?), (?, ?);",
+    "INSERT INTO friends(id_friend1, id_friend2) VALUES(?, ?);",
     [req.user.id, friendId, friendId, req.user.id],
     function (err) {
       if (err) {

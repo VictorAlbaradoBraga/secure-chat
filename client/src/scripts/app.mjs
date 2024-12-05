@@ -235,17 +235,17 @@ export function selectUser(element)
 }
 
 function addFriend() {
-  const friendId = prompt("Digite o ID do amigo:");
-  if (friendId) {
+  const friedUsername = prompt("Digite o nome de usuário do amigo:");
+  if (friendUsername) {
     fetch("/api/addFriend", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
       },
-      body: JSON.stringify({ friendId })
+      body: JSON.stringify({ friedUsername })
     })
-    .then(response => response.json())
+    .then(response =>{ response.json()})
     .then(data => {
       alert(data.message);
     })
