@@ -1,48 +1,80 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Secure Chat</title>
-	<link rel="stylesheet" href="/styles/chat.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Chat</title>
+  <link rel="stylesheet" href="/styles/chat.css">
 </head>
 <body>
-	<div class="chat-container">
-		<div class="users" id="users">
-			<div class="user" id="user"></div>
-			<div class="groups" id="groups"></div>
-			<button id="addFriend" onclick="openAddFriendModal()">Add Friend</button>
-			<button id="createGroup" onclick="openCreateGroupModal()">Create Group</button>
-		</div>
-		<div class="chat">
-			<div class="messages" id="messages"></div>	
-			<input type="text" id="textbox" placeholder="type something"/>
-			<button id="sendMessage" onclick="sendMessage()">Send Message</button>
-		</div>
-	</div>
+  <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <button id="addFriendBtn" onclick="showAddFriendForm()">Adicionar Amigo</button>
+      <button id="createGroupBtn" onclick="showCreateGroupForm()">Criar Grupo</button>
+      <!-- Botão para ver as solicitações de amizade -->
+      <button id="viewFriendRequestsBtn" onclick="toggleFriendRequestsForm()">Ver Solicitações de Amizade</button>
 
-	<!-- Modal for Add Friend -->
-	<div id="addFriendModal" class="modal">
-		<div class="modal-content">
-			<span class="close" onclick="closeAddFriendModal()">&times;</span>
-			<h2>Add Friend</h2>
-			<input type="text" id="friendUsername" placeholder="Enter username">
-			<button onclick="sendFriendRequest()">Send Friend Request</button>
-		</div>
-	</div>
+      <!-- Barra de pesquisa para buscar amigos -->
+      <div id="searchContainer">
+        <input type="text" id="searchUsername" placeholder="Buscar amigo..." oninput="searchFriends()">
+        <div id="searchResults"></div>
+      </div>
+    </div>
 
-	<!-- Modal for Create Group -->
-	<div id="createGroupModal" class="modal">
-		<div class="modal-content">
-			<span class="close" onclick="closeCreateGroupModal()">&times;</span>
-			<h2>Create Group</h2>
-			<input type="text" id="groupName" placeholder="Group Name">
-			<input type="text" id="groupMembers" placeholder="Enter usernames (comma separated)">
-			<button onclick="createGroup()">Create Group</button>
-		</div>
-	</div>
+    <!-- Main Content -->
+    <div class="main">
+      <div class="users" id="users">
+        <div id="userList"></div> <!-- Lista de amigos -->
+      </div>
 
-	<script src="/socket.io/socket.io.js"></script>
-	<script type="module" src="/scripts/app.mjs"></script>
+      <!-- Formulários -->
+      <div id="formContainer">
+        <!-- Formulário para Adicionar Amigo -->
+        <form id="addFriendForm" class="form">
+          <h2>Adicionar Amigo</h2>
+          <label for="friendUsername">Digite o nome do usuário:</label>
+          <input type="text" id="friendUsername" required>
+          <button type="submit">Enviar Solicitação</button>
+          <button type="button" onclick="hideForm()">Fechar</button>
+        </form>
+
+        <!-- Formulário para Criar Grupo -->
+        <form id="createGroupForm" class="form">
+          <h2>Criar Grupo</h2>
+          <label for="groupName">Nome do Grupo:</label>
+          <input type="text" id="groupName" required>
+          <label for="groupMembers">Selecione os Amigos:</label>
+          <select id="groupMembers" multiple></select>
+          <button type="submit">Criar Grupo</button>
+          <button type="button" onclick="hideForm()">Fechar</button>
+        </form>
+
+        <!-- Formulário de Solicitações de Amizade -->
+        <form id="friendRequestsForm" class="form" style="display: none;">
+          <h2>Solicitações de Amizade</h2>
+          <div id="friendRequests"></div> <!-- Seção de solicitações de amizade -->
+          <button type="button" onclick="hideForm()">Fechar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback Message -->
+  <div id="feedbackMessage" class="feedback-message"></div>
+
+  <!-- Modal de Solicitação -->
+  <div id="friendRequestModal" class="modal">
+    <div class="modal-content">
+      <span id="closeModalBtn" class="close">&times;</span>
+      <h3>Solicitação de Amizade</h3>
+      <p id="modalUsername"></p>
+      <button id="acceptBtn">Aceitar</button>
+      <button id="declineBtn">Recusar</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/scripts/chat.js"></script>
 </body>
 </html>

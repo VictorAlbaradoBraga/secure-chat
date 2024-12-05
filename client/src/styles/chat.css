@@ -1,38 +1,213 @@
-/* Modal container */
+/* Estilos para o layout geral */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .container {
+    display: flex;
+    height: 100vh;
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    width: 250px;
+    background-color: #fff;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    overflow-y: auto;
+  }
+  
+  .sidebar button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .sidebar button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Barra de pesquisa */
+  #searchContainer {
+    margin-bottom: 20px;
+  }
+  
+  #searchUsername {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  #searchResults {
+    border: 1px solid #ccc;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: white;
+    border-radius: 5px;
+  }
+  
+  #searchResults div {
+    padding: 5px;
+    cursor: pointer;
+  }
+  
+  #searchResults div:hover {
+    background-color: #f0f0f0;
+  }
+  
+  /* Formulários */
+  .form {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+  }
+  
+  .form.active {
+    display: flex;
+  }
+  
+  .form input,
+  .form select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  .form button {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .form button:hover {
+    background-color: #218838;
+  }
+  
+  .form button[type="button"] {
+    background-color: #dc3545;
+  }
+  
+  .form button[type="button"]:hover {
+    background-color: #c82333;
+  }
+  
+  /* Seção de solicitações de amizade */
+  #friendRequests {
+    margin-top: 20px;
+  }
+  
+  .friend-request {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    align-items: center;
+  }
+  
+  .friend-request button {
+    margin-left: 10px;
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .friend-request button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Tabelas de usuários */
+  .users {
+    flex: 1;
+    padding: 20px;
+  }
+  
+  #userList {
+    margin-top: 20px;
+  }
+  
+  .user-link {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin: 10px 0;
+    cursor: pointer;
+  }
+  
+  .user-link:hover {
+    background-color: #e9ecef;
+  }
+  
+  /* Responsividade */
+  @media (max-width: 768px) {
+    .container {
+      flex-direction: column;
+    }
+  
+    .sidebar {
+      width: 100%;
+      box-shadow: none;
+    }
+  }
+ /* Estilos para o Modal */
 .modal {
-    display: none; 
-    position: fixed; 
-    z-index: 1; 
+    display: none; /* Oculta o modal por padrão */
+    position: fixed;
+    z-index: 1; /* Fica em cima do conteúdo */
     left: 0;
     top: 0;
-    width: 100%; 
-    height: 100%; 
-    background-color: rgba(0, 0, 0, 0.4); 
-    padding-top: 60px; 
-}
-
-/* Modal content */
-.modal-content {
-    background-color: #fff;
-    margin: 5% auto;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0, 0, 0); /* Fundo semi-transparente */
+    background-color: rgba(0, 0, 0, 0.4); /* Fundo semitransparente */
+  }
+  
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
     padding: 20px;
     border: 1px solid #888;
     width: 80%;
-    max-width: 500px;
-    border-radius: 6px;
-}
-
-/* Close button */
-.close {
+    max-width: 400px;
+  }
+  
+  .close {
     color: #aaa;
     float: right;
     font-size: 28px;
     font-weight: bold;
-}
-
-.close:hover,
-.close:focus {
+  }
+  
+  .close:hover,
+  .close:focus {
     color: black;
     text-decoration: none;
     cursor: pointer;
-}
+  }
+  
