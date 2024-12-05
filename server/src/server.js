@@ -245,6 +245,7 @@ app.post("/api/addFriend", authenticateUser, (req, res) => {
 // Verifica se dois usuários são amigos
 app.get("/api/isFriend/", authenticateUser, (req, res) => {
   const { friendUsername } = req.query;
+  console.log(req.user);
   console.log(friendUsername);
   if (!friendUsername) {
     console.log("friendUsername está vazio");

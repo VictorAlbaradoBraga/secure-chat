@@ -8,7 +8,7 @@ const socket = io("/users",
     {
       "username": me.username, 
       "token": sessionStorage.getItem("accessToken"),
-      "refresh": localStorage.getItem("refreshToken"),
+      "refresh": sessionStorage.getItem("refreshToken"),
     }
   });
 const usersDiv = document.getElementById("users");
@@ -253,7 +253,7 @@ async function refreshToken() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        refreshToken: localStorage.getItem("refreshToken"),
+        refreshToken: sessionStorage.getItem("refreshToken"),
         })
     });
 
