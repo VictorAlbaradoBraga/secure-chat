@@ -1,3 +1,4 @@
+// server.js
 require("dotenv").config();
 
 const {createServer} = require("node:http");
@@ -277,6 +278,70 @@ app.get("/api/isFriend/:friendId", authenticateUser, (req, res) => {
 // defines namespaces to pipe data through different channels for users and groups;
 const ioUser = io.of("/users");
 const ioGroup = io.of("/groups");
+
+// Lista de grupos no servidor
+let groups = [];
+
+// Função para criar um grupo
+io.on("connection", (socket) => {
+  socket.on("create group", (groupData, callback) => {
+    const { name, members } = groupData;
+    const groupId = randomUUID();
+    
+    // Verificar se os membros estão no banco de dados
+    const validMembers = members.filter(member => isUserValid(member));
+    
+    if (validMembers.length > 0) {
+      const newGroup = {
+        id: groupId,
+        name: name,
+        members: validMembers,
+        createdBy: socket.id,
+      };
+      
+      groups.push(newGroup);
+      
+      // Enviar de volta a confirmação de criação do grupo
+      callback({ success: true, group: newGroup });
+    } else {
+      callback({ success: false });
+    }
+  });
+
+  // Função para sair do grupo
+  socket.on("leave group", (data, callback) => {
+    const { groupId, userId } = data;
+    
+    // Encontrar o grupo
+    const group = groups.find(group => group.id === groupId);
+    
+    if (group) {
+      // Remover o usuário do grupo
+      group.members = group.members.filter(member => member !== userId);
+      
+      // Se o usuário sair, enviar nova chave compartilhada
+      updateSharedKeyForGroup(group);
+      
+      callback({ success: true });
+    } else {
+      callback({ success: false });
+    }
+  });
+});
+
+// Função para verificar se o usuário é válido (exemplo simples)
+function isUserValid(username) {
+  // Aqui você pode buscar no banco de dados ou verificar se o nome do usuário existe
+  return true; // Simulação de um usuário válido
+}
+
+// Função para atualizar a chave compartilhada de um grupo
+function updateSharedKeyForGroup(group) {
+  group.members.forEach(userId => {
+    // Aqui você pode enviar a nova chave compartilhada para os membros restantes
+    socket.emit("update shared key", { groupId: group.id, userId: userId });
+  });
+}
 
 ioUser.use((socket, next) => {
   const token = socket.handshake.auth["token"];

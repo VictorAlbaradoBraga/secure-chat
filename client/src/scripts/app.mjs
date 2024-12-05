@@ -1,3 +1,5 @@
+// app.mjs
+
 import { Blowfish } from 'https://unpkg.com/egoroof-blowfish@4.0.1/dist/blowfish.mjs';
 
 let me = {"id": null, "username": sessionStorage.getItem("username")};
@@ -299,6 +301,76 @@ async function addFriend() {
     }
   }
 }
+
+// Variáveis
+let selectedFriends = []; // Lista de amigos selecionados
+let groups = []; // Lista de grupos existentes
+
+// Função para abrir o pop-up de criação de grupo
+export function openCreateGroupPopup() {
+  // Exibe a janela de entrada de nome do grupo
+  const groupName = prompt("Digite o nome do grupo:");
+
+  if (groupName) {
+    // A janela seguinte para inserir nomes de amigos
+    const friendsInput = prompt("Digite os nomes dos amigos separados por vírgula:");
+
+    if (friendsInput) {
+      // Processa a lista de amigos e envia ao servidor
+      const friendsList = friendsInput.split(',').map(name => name.trim());
+      const groupData = { name: groupName, members: friendsList };
+
+      socket.emit("create group", groupData, (response) => {
+        if (response.success) {
+          alert("Grupo criado com sucesso!");
+          addGroupToSidebar(response.group); // Adiciona o grupo na interface
+        } else {
+          alert("Erro ao criar o grupo.");
+        }
+      });
+    }
+  }
+}
+
+// Função para adicionar o grupo na barra lateral
+function addGroupToSidebar(group) {
+  const groupsDiv = document.getElementById('groupsDiv');
+  const groupDiv = document.createElement('div');
+  groupDiv.classList.add('group');
+  groupDiv.textContent = group.name;
+  groupDiv.setAttribute('data-id', group.id); // Associar ID do grupo
+  groupDiv.addEventListener('click', () => switchToGroup(group.id));
+  groupsDiv.appendChild(groupDiv);
+}
+
+// Função para alternar para o grupo selecionado
+function switchToGroup(groupId) {
+  console.log(`Entrou no grupo ${groupId}`);
+  // Aqui você pode adicionar a lógica para exibir as mensagens do grupo e permitir o envio de novas mensagens
+}
+
+// Função para sair do grupo
+export function leaveGroup(groupId) {
+  socket.emit("leave group", { groupId: groupId, userId: me.id }, (response) => {
+    if (response.success) {
+      alert("Você saiu do grupo com sucesso!");
+      removeGroupFromSidebar(groupId); // Remove o grupo da interface
+    } else {
+      alert("Erro ao sair do grupo.");
+    }
+  });
+}
+
+// Função para remover o grupo da barra lateral
+function removeGroupFromSidebar(groupId) {
+  const groupDiv = document.querySelector(`div[data-id='${groupId}']`);
+  if (groupDiv) {
+    groupDiv.remove();
+  }
+}
+
+window.openCreateGroupPopup = openCreateGroupPopup;
+window.leaveGroup = leaveGroup;
 
 window.sendMessage = sendMessage;
 window.selectUser = selectUser;
