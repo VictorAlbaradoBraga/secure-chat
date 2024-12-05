@@ -203,7 +203,7 @@ async function sendMessage()
 
         displayMessage(me.username, cryptoMessage, user.secret);
 
-        socket.emit("send message", {"id": friendId, "sender": me.username, "msg": cryptoMessage});
+        socket.emit("send message", {"id": friendId, "sender": me.username, "to": user.username, "msg": cryptoMessage});
         textbox.value = '';
       }
   }

@@ -280,7 +280,7 @@ app.get("/api/isFriend/", authenticateUser, (req, res) => {
             return res.status(404).json({ message: "Users are not friends" });
           }
           // Users are friends, send a response
-          console.log(`match ${match}`);
+          console.log(`match: ${user1.username} e ${user2.username} são amigos`);
           return res.status(200).json({ isFriend: true });
         }
       );
@@ -347,7 +347,7 @@ ioUser.on("connection", (socket) => {
 
   // watches on for send messages, and redirects it to the correct room.
   socket.on("send message", (data) => {
-    console.log(`message from ${data.id} to ${data.sender}: ${new TextDecoder().decode(data.msg)}`)
+    console.log(`message from ${data.sender} to ${data.to}: ${new TextDecoder().decode(data.msg)}`)
     socket.to(data.id).emit("receive message", { id: socket.id, sender: data.sender, msg: data.msg});
   });
 
