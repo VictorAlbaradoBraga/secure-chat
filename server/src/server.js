@@ -113,8 +113,17 @@ app.get("/admin/api/users", (req, res)=>{
 });
 
 app.post("/token", (req, res)=>{
-
+  const refreshToken = req.body.refreshToken;
+  if(!refreshToken) return res.status(401);
+  if(!refresh.includes(refreshToken)) return res.status(403);
+  jtw.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, user)=>{
+    if(err) return res.status(403);
+    const accessToken = jwt.sign({username: user.username}, ACCESS_TOKEN_SECRET);
+    res.json({accessToken});
+  })
 });
+
+let refresh = [];
 
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
@@ -132,7 +141,9 @@ app.post("/api/login", (req, res) => {
           if (match) {
             const payload = { username: user.username };
             const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15s" });
-            return res.status(200).json({ message: "Login successful!", accessToken }); // Ends response
+            const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET);
+            refresh.push(refreshToken);
+            return res.status(200).json({ message: "Login successful!", accessToken, refreshToken }); // Ends response
           } else {
             return res.status(401).json({ message: "Invalid credentials." }); // Ends response
           }
@@ -186,7 +197,8 @@ const ioUser = io.of("/users");
 const ioGroup = io.of("/groups");
 
 ioUser.use((socket, next) => {
-  const token = socket.handshake.auth['token'];
+  const token = socket.handshake.auth["token"];
+  const refreshToken = socket.handshake.auth["refresh"];
   if (!token) {
     return next(new Error('Authorization token is required'));
   }
@@ -195,7 +207,7 @@ ioUser.use((socket, next) => {
     if (err) {
       return next(new Error('Invalid token'));
     }
-    socket.user = decoded;
+    socket.user = {decoded, refreshToken};
     console.log(decoded)
     next();
   });
@@ -223,7 +235,6 @@ ioGroup.on("connection", (socket) => {
 
 // user to user communication channel
 ioUser.on("connection", (socket) => {
-    
   // informs other sockets a new user has connected and that they can talk to him.
   socket.broadcast.emit("user connected", { id: socket.id, username: socket.handshake.auth.username });
 
@@ -244,7 +255,9 @@ ioUser.on("connection", (socket) => {
   });
 
   socket.on("disconnect", (reason) => {
-    // server signals all current connected users who disconnected
+    console.log(refresh);
+    refresh = refresh.filter(token=> token !== socket.user.refreshToken);
+    console.log(refresh);
     ioUser.emit("user disconnected", { id: socket.id });
   });
 });

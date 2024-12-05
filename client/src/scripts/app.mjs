@@ -3,7 +3,14 @@ import { Blowfish } from 'https://unpkg.com/egoroof-blowfish@4.0.1/dist/blowfish
 let me = {"id": null, "username": sessionStorage.getItem("username")};
 let friendId = null;
 
-const socket = io("/users", {"auth": {"username": me.username, "token": localStorage.getItem("accessToken")}});
+const socket = io("/users", 
+  {"auth": 
+    {
+      "username": me.username, 
+      "token": localStorage.getItem("accessToken"),
+      "refresh": localStorage.getItem("refreshToken"),
+    }
+  });
 const usersDiv = document.getElementById("users");
 const pairedKeys = [];
 const messagesDiv = document.getElementById("messages");
