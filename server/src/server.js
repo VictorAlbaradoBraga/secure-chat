@@ -176,6 +176,46 @@ app.post("/api/register", (req, res) => {
   });
 });
 
+// Adiciona um amigo
+app.post("/api/addFriend", authenticateUser, (req, res) => {
+  const { friendId } = req.body;
+
+  if (req.user.username === friendId) {
+    return res.status(400).json({ message: "Você não pode ser amigo de si mesmo!" });
+  }
+
+  db.run(
+    "INSERT INTO friends(id_friend1, id_friend2) VALUES(?, ?), (?, ?);",
+    [req.user.id, friendId, friendId, req.user.id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ message: "Erro ao adicionar amigo." });
+      }
+      res.status(200).json({ message: "Amigo adicionado com sucesso!" });
+    }
+  );
+});
+
+// Verifica se dois usuários são amigos
+app.get("/api/isFriend/:friendId", authenticateUser, (req, res) => {
+  const { friendId } = req.params;
+
+  db.get(
+    "SELECT * FROM friends WHERE (id_friend1 = ? AND id_friend2 = ?) OR (id_friend1 = ? AND id_friend2 = ?);",
+    [req.user.id, friendId, friendId, req.user.id],
+    (err, row) => {
+      if (err) {
+        return res.status(500).json({ message: "Erro ao verificar amizade." });
+      }
+      if (row) {
+        res.status(200).json({ isFriend: true });
+      } else {
+        res.status(200).json({ isFriend: false });
+      }
+    }
+  );
+});
+
 /*websocket events*/
 // defines namespaces to pipe data through different channels for users and groups;
 const ioUser = io.of("/users");

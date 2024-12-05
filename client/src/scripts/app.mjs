@@ -161,23 +161,32 @@ function storeMsg(sender, keyhalf, msg, secret)
   localStorage.setItem(key, JSON.stringify(messages));
 }
 
-export function sendMessage()
-{
-  if(friendId)
-  {
-      const user = pairedKeys.find((user) => user.id === friendId);
-      const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
+export function sendMessage() {
+  if (friendId) {
+    // Verifica se são amigos antes de enviar a mensagem
+    fetch(`/api/isFriend/${friendId}`, { method: "GET", headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` } })
+      .then(response => response.json())
+      .then(data => {
+        if (data.isFriend) {
+          const user = pairedKeys.find((user) => user.id === friendId);
+          const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
 
-      const textbox = document.getElementById("textbox");
-      const message = textbox.value;
-      const cryptoMessage = bf.encode(message);
+          const textbox = document.getElementById("textbox");
+          const message = textbox.value;
+          const cryptoMessage = bf.encode(message);
 
-      storeMsg(me.username, user.username, cryptoMessage, user.secret);
-
-      displayMessage(me.username, cryptoMessage, user.secret);
-
-      socket.emit("send message", {"id": friendId, "sender": me.username, "msg": cryptoMessage});
-      textbox.value = '';
+          storeMsg(friendId, me.id, cryptoMessage);
+          displayMessage(me.id, cryptoMessage);
+          socket.emit("send message", { "id": friendId, "sender": me.id, "msg": cryptoMessage });
+          textbox.value = '';
+        } else {
+          alert("Você só pode enviar mensagens para seus amigos!");
+        }
+      })
+      .catch(err => {
+        console.log("Erro ao verificar amizade", err);
+        alert("Erro ao verificar se são amigos.");
+      });
   }
 }
 
@@ -217,5 +226,28 @@ export function selectUser(element)
   });
 }
 
+function addFriend() {
+  const friendId = prompt("Digite o ID do amigo:");
+  if (friendId) {
+    fetch("/api/addFriend", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+      body: JSON.stringify({ friendId })
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message);
+    })
+    .catch(err => {
+      console.log("Erro ao adicionar amigo:", err);
+      alert("Erro ao adicionar amigo.");
+    });
+  }
+}
+
 window.sendMessage = sendMessage;
 window.selectUser = selectUser;
+window.addFriend = addFriend;
