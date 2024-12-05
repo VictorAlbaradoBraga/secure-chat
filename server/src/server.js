@@ -65,7 +65,7 @@ app.use(express.json());
 
 /*routes*/
 function authenticateUser(req, res, next){
-  const token = req.query.token;
+  const token = req.query.token || req.headers.authorization?.split(" ")[1];
   if(!token){
     console.log("error sem token"); 
     return res.sendStatus(400);
@@ -140,7 +140,7 @@ app.post("/api/login", (req, res) => {
         .then((match) => {
           if (match) {
             const payload = { username: user.username };
-            const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15s" });
+            const accessToken = jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1h" });
             const refreshToken = jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET);
             refresh.push(refreshToken);
             return res.status(200).json({ message: "Login successful!", accessToken, refreshToken }); // Ends response
@@ -201,7 +201,7 @@ app.post("/api/addFriend", authenticateUser, (req, res) => {
 
   db.run(
     "INSERT INTO friends(id_friend1, id_friend2) VALUES(?, ?), (?, ?);",
-    [req.user.id, friendId, friendId, req.user.id],
+    [req.user.username, friendId, friendId, req.user.username],
     function (err) {
       if (err) {
         return res.status(500).json({ message: "Erro ao adicionar amigo." });
@@ -215,9 +215,11 @@ app.post("/api/addFriend", authenticateUser, (req, res) => {
 app.get("/api/isFriend/:friendId", authenticateUser, (req, res) => {
   const { friendId } = req.params;
 
+  console.log(`Verificando amizade entre ${req.user.username} e ${friendId}`); // Loga a ação
+
   db.get(
     "SELECT * FROM friends WHERE (id_friend1 = ? AND id_friend2 = ?) OR (id_friend1 = ? AND id_friend2 = ?);",
-    [req.user.id, friendId, friendId, req.user.id],
+    [req.user.username, friendId, friendId, req.user.username],
     (err, row) => {
       if (err) {
         return res.status(500).json({ message: "Erro ao verificar amizade." });

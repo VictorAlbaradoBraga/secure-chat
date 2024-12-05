@@ -175,6 +175,7 @@ export function sendMessage() {
     fetch(`/api/isFriend/${friendId}`, { method: "GET", headers: { "Authorization": `Bearer ${localStorage.getItem("accessToken")}` } })
       .then(response => response.json())
       .then(data => {
+        console.log(data)
         if (data.isFriend) {
           const user = pairedKeys.find((user) => user.id === friendId);
           const bf = new Blowfish(user.secret, Blowfish.MODE.ECB, Blowfish.PADDING.NULL);
@@ -237,14 +238,13 @@ export function selectUser(element)
 function addFriend() {
   const friendId = prompt("Digite o ID do amigo:");
   if (friendId) {
-    fetch("/api/addFriend", {
+    fetch(`/api/addFriend?token=${localStorage.getItem("accessToken")}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
       },
-      body: JSON.stringify({ friendId })
-    })
+      body: JSON.stringify({ friendId }),
+    })    
     .then(response => response.json())
     .then(data => {
       alert(data.message);
